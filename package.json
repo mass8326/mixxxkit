@@ -1,0 +1,28 @@
+{
+  "name": "mixxx-merge",
+  "version": "0.1.0",
+  "description": "Combine your Mixxx databases together to transfer song cues",
+  "author": "Magnus Reyes <me@magnusreyes.com>",
+  "license": "MIT",
+  "type": "module",
+  "bin": "src/bin.ts",
+  "scripts": {
+    "start": "bun run src/bin.ts",
+    "build": "bun build src/bin.ts --compile --outfile dist/mixxx-merge",
+    "postinstall": "husky"
+  },
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "drizzle-orm": "^0.30.8"
+  },
+  "devDependencies": {
+    "@mgnsfr/eslint-config": "^0.1.0",
+    "@types/bun": "latest",
+    "better-sqlite3": "^9.5.0",
+    "drizzle-kit": "^0.20.14",
+    "globify-gitignore": "^1.0.3",
+    "husky": "^9.0.11",
+    "typescript": "^5.0.0",
+    "typescript-eslint": "^7.6.0"
+  }
+}
