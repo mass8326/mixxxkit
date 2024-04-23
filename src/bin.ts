@@ -1,7 +1,6 @@
 import { stat } from "node:fs/promises";
 import { normalize } from "node:path";
 import { Database } from "bun:sqlite";
-import chalk from "chalk";
 import { drizzle } from "drizzle-orm/bun-sqlite";
 import * as schema from "./schema";
 import { question, readline } from "./util/question";
@@ -11,10 +10,8 @@ import {
 } from "./util/replace";
 import { validateDatbasePath } from "./util/validate";
 
-console.info(chalk.bgMagenta("                                              "));
-console.info(chalk.bgMagenta("  https://github.com/oven-sh/bun/issues/5953  "));
-console.info(chalk.bgMagenta("  Press enter to initialize program...        "));
-console.info(chalk.bgMagenta("                                              "));
+// TODO: Remove when issue resolved - https://github.com/oven-sh/bun/issues/5953
+console.info("Press enter to initialize...");
 await readline.question("");
 
 const sourcePath = await question({

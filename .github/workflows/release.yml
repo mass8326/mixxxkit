@@ -3,23 +3,24 @@ on:
   push:
     tags:
       - "v[0-9]+.[0-9]+.[0-9]+*"
+permissions:
+  contents: write
 jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - id: create
-        name: Create
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
+        name: Create release
+        uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref }}
-          release_name: Mixxx Merge ${{ github.ref }}
+          name: Mixxx Merge ${{ github.ref_name }}
     outputs:
       upload_url: ${{ steps.create.outputs.upload_url }}
   upload:
-    name: Upload
+    name: Upload asset (${{ matrix.config.asset_name }})
     needs: release
     strategy:
       matrix:
@@ -27,6 +28,9 @@ jobs:
           - os: ubuntu-latest
             asset_file: mixxx-merge
             asset_name: mixxx-merge-linux
+          - os: macos-latest
+            asset_file: mixxx-merge
+            asset_name: mixxx-merge-macos
           - os: windows-latest
             asset_file: mixxx-merge.exe
             asset_name: mixxx-merge-windows.exe
@@ -35,8 +39,8 @@ jobs:
       - uses: actions/checkout@v1
       - uses: oven-sh/setup-bun@v1
         with:
-        bun-version: latest
-      - run: bun run build
+          bun-version: latest
+      - run: bun install --frozen-lockfile && bun run build
       - uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ github.token }}

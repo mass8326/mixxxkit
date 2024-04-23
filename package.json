@@ -1,7 +1,7 @@
 {
   "name": "mixxx-merge",
   "version": "0.1.0",
-  "description": "Combine your Mixxx databases together to transfer song cues",
+  "description": "A command line tool that makes merging Mixxx 2.4 libraries easy.",
   "author": "Magnus Reyes <me@magnusreyes.com>",
   "license": "MIT",
   "type": "module",
@@ -12,7 +12,6 @@
     "postinstall": "husky"
   },
   "dependencies": {
-    "chalk": "^5.3.0",
     "drizzle-orm": "^0.30.8"
   },
   "devDependencies": {
