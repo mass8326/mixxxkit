@@ -7,24 +7,13 @@
   "type": "module",
   "bin": "src/bin.ts",
   "scripts": {
-    "start": "bun run src/bin.ts",
-    "build": "bun build src/bin.ts --compile --outfile dist/mixxx-merge",
-    "postinstall": "husky"
-  },
-  "dependencies": {
-    "chalk": "^5.3.0",
-    "drizzle-orm": "^0.30.8",
-    "remeda": "^1.61.0"
+    "dev": "cargo run",
+    "lint": "cargo clippy --fix --allow-staged && cargo fmt",
+    "test": "cargo test",
+    "build": "cargo build --release",
+    "prepare": "husky"
   },
   "devDependencies": {
-    "@mgnsfr/eslint-config": "^0.1.0",
-    "better-sqlite3": "^9.5.0",
-    "bun-types": "^1.1.4",
-    "drizzle-kit": "^0.20.14",
-    "globify-gitignore": "^1.0.3",
-    "husky": "^9.0.11",
-    "lint-staged": "^15.2.2",
-    "typescript": "^5.0.0",
-    "typescript-eslint": "^7.6.0"
+    "husky": "^9.0.11"
   }
 }

@@ -1,8 +1,3 @@
 {
-  "eslint.rules.customizations": [
-    { "rule": "no-restricted-syntax", "severity": "warn" },
-    { "rule": "import/order", "severity": "off" }
-  ],
-  "eslint.experimental.useFlatConfig": true,
-  "prettier.ignorePath": ".gitignore"
+  "editor.rulers": [100]
 }
