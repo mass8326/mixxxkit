@@ -1,37 +1,30 @@
 mod cli;
 
-use cli::{prompt_for_databases, prompt_for_directories};
-use mixxx_merge::{
-    database::{get_sqlite_connection, remove_fk_constraints, restore_fk_constraints},
-    queries,
+use clap::Parser;
+use cli::{
+    commands::{backup, import, merge},
+    parser::{Cli, Commands},
 };
-use std::fs;
-use tokio::try_join;
+use inquire::Select;
+use std::error::Error;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let paths = prompt_for_databases();
+async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
+    let cli = Cli::parse();
+    match cli.command.unwrap_or_else(prompt) {
+        Commands::Merge => merge::run().await,
+        Commands::Backup => backup::run(),
+        Commands::Import => import::run().await,
+    }
+}
 
-    fs::copy(&paths.target, &paths.output)?;
-
-    let (source, output) = try_join!(
-        get_sqlite_connection(&paths.source),
-        get_sqlite_connection(&paths.output),
-    )?;
-
-    let dirs = queries::directories::get(&source).await?;
-    let dir_map = prompt_for_directories(&dirs).await?;
-    queries::directories::insert(&output, &dirs, Some(&dir_map)).await?;
-
-    remove_fk_constraints(&output).await?;
-
-    let locs = queries::locations::get(&source).await?;
-    let loc_map = queries::locations::insert(&output, locs, Some(&dir_map)).await?;
-
-    let tracks = queries::tracks::get(&source).await?;
-    queries::tracks::insert(&output, tracks, &loc_map).await?;
-
-    restore_fk_constraints(&output).await?;
-
-    Ok(())
+fn prompt() -> Commands {
+    let result = Select::new("What would you like to do?", vec!["merge", "backup"])
+        .prompt()
+        .unwrap();
+    match result {
+        "merge" => Commands::Merge,
+        "backup" => Commands::Backup,
+        _ => panic!("Unexpected command selected!"),
+    }
 }

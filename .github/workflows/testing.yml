@@ -9,21 +9,24 @@ jobs:
       matrix:
         config:
           - os: ubuntu-latest
+            pre: sudo apt install -y musl-tools
+            post: ls target/x86_64-unknown-linux-musl/release
             target: x86_64-unknown-linux-musl
-            asset_file: mixxx-merge
-            asset_name: mixxx-merge-linux
           - os: macos-latest
+            pre: echo 'No native dependencies needed'
+            post: ls target/x86_64-apple-darwin/release
             target: x86_64-apple-darwin
-            asset_file: mixxx-merge
-            asset_name: mixxx-merge-macos
           - os: windows-latest
+            pre: echo 'No native dependencies needed'
+            post: dir target\x86_64-pc-windows-msvc\release
             target: x86_64-pc-windows-msvc
-            asset_file: mixxx-merge.exe
-            asset_name: mixxx-merge-windows.exe
     runs-on: ${{ matrix.config.os }}
     steps:
       - uses: actions/checkout@v1
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           target: ${{ matrix.config.target }}
-      - run: cargo build --release --target ${{ matrix.config.target }}
+      - run: |
+        ${{ matrix.config.pre }}
+        cargo build --release --target ${{ matrix.config.target }}
+        ${{ matrix.config.post }}

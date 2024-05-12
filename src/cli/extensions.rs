@@ -1,24 +1,32 @@
 pub trait NormalizePath {
-    fn trim_surround(self, char: char) -> String;
+    fn trim_surround(self, char: char) -> Self;
     fn normalize_path(self) -> String;
 }
 
-impl NormalizePath for String {
-    fn trim_surround(self, pat: char) -> String {
+impl<'a> NormalizePath for &'a str {
+    fn trim_surround(self, pat: char) -> &'a str {
         let mut chars = self.chars();
         let quoted =
             chars.next().is_some_and(|c| c == pat) && chars.last().is_some_and(|c| c == pat);
         if quoted {
-            self[1..(self.len() - 1)].to_owned()
+            &self[1..(self.len() - 1)]
         } else {
             self
         }
     }
 
     fn normalize_path(self) -> String {
-        self.trim()
-            .replace('\\', "/")
-            .trim_surround(char::from_u32(0x22).unwrap())
+        self.trim().trim_surround('"').replace('\\', "/")
+    }
+}
+
+impl NormalizePath for String {
+    fn trim_surround(self, pat: char) -> String {
+        self[..].trim_surround(pat).to_owned()
+    }
+
+    fn normalize_path(self) -> String {
+        self[..].normalize_path()
     }
 }
 
@@ -27,14 +35,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn removes_outside_quotes() {
-        let result = String::from("\"\"This is a \"test\" string\"\"").normalize_path();
-        assert_eq!(result, "\"This is a \"test\" string\"");
+    fn str_trim_surround() {
+        assert_eq!("xxxxx".trim_surround('x'), "xxx");
     }
 
     #[test]
-    fn replaces_slashes() {
-        let result = String::from("C:\\Test\\Dir").normalize_path();
+    fn str_normalize_path() {
+        let result = " \"C:\\Test\\Dir\" ".normalize_path();
         assert_eq!(result, "C:/Test/Dir");
     }
 }

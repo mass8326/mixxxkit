@@ -1,16 +1,22 @@
-# Mixxx Merge
+# MixxxKit
 
-A command line tool that makes merging [Mixxx 2.4](https://mixxx.org/) libraries easy.
+A command line tool that makes managing [Mixxx 2.4](https://mixxx.org/) libraries easy.
 
 ## Warning
 
-**_!!! This tool is experimental and comes with no warranties. The Mixxx database has many peculiarities. This tool may corrupt your database, causing you to lose your hot cues, crates, analyzed tracks, and more. I am not responsible for your many hours of lost work if this happens. !!!_**
+**_!!! This tool is experimental and comes with no warranties. The loss of your hot cues, crates, analyzed tracks, and more is possible. !!!_**
 
 To protect against this, please make a backup of your entire [Mixxx settings directory](https://manual.mixxx.org/2.4/en/chapters/appendix/settings_directory) before using.
 
 - Windows: `%LOCALAPPDATA%\Mixxx`
-- macOS: `~/Library/Containers/org.mixxx.mixxx/Data/Library/Application  Support/Mixxx`
+- macOS: `~/Library/Containers/org.mixxx.mixxx/Data/Library/Application Support/Mixxx`
 - Linux: `~/.mixxx/`
+
+Alternatively, if you trust me and my coding, you can use the following command as a shorthand:
+
+```sh
+$ mixxxkit backup
+```
 
 ## Using
 

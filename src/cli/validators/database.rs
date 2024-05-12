@@ -1,7 +1,7 @@
 use crate::cli::extensions::NormalizePath;
 use inquire::validator::{StringValidator, Validation};
 use inquire::CustomUserError;
-use mixxx_merge::database::get_sqlite_connection;
+use mixxxkit::database::get_sqlite_connection;
 use sea_orm::{ConnectionTrait, DatabaseBackend, DbErr, Statement};
 use std::path::Path;
 use tokio::{runtime, task};
@@ -21,7 +21,7 @@ async fn can_open_database(path: &str) -> Result<(), DbErr> {
 
 impl StringValidator for Validator {
     fn validate(&self, path: &str) -> Result<Validation, CustomUserError> {
-        let normalized = path.to_owned().normalize_path();
+        let normalized = path.normalize_path();
         if normalized.is_empty() {
             return Ok(Validation::Invalid("Path is required!".into()));
         }

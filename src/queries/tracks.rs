@@ -19,7 +19,7 @@ pub async fn get(db: &DatabaseConnection) -> Result<Vec<library::Model>, DbErr> 
     let tracks_sql = library::Entity::find()
         .into_query()
         .to_string(SqliteQueryBuilder);
-    let tracks = db
+    let tracks: Vec<_> = db
         .query_all(Statement::from_string(DatabaseBackend::Sqlite, tracks_sql))
         .await?
         .into_iter()
@@ -27,7 +27,7 @@ pub async fn get(db: &DatabaseConnection) -> Result<Vec<library::Model>, DbErr> 
             cuepoint: v.try_get_by_index(13).unwrap(),
             ..library::Model::from_query_result(&v, "").unwrap()
         })
-        .collect::<Vec<_>>();
+        .collect();
     Ok(tracks)
 }
 

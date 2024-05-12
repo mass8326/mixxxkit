@@ -1,14 +1,14 @@
 {
-  "name": "mixxx-merge",
+  "name": "mixxxkit",
   "version": "0.1.0",
-  "description": "A command line tool that makes merging Mixxx 2.4 libraries easy.",
+  "description": "CLI tool to help manage Mixxx 2.4 libraries",
   "author": "Magnus Reyes <me@magnusreyes.com>",
   "license": "MIT",
   "type": "module",
   "bin": "src/bin.ts",
   "scripts": {
     "dev": "cargo run",
-    "lint": "cargo clippy --fix --allow-staged && cargo fmt",
+    "lint": "cargo clippy && cargo fmt",
     "test": "cargo test",
     "build": "cargo build --release",
     "prepare": "husky"

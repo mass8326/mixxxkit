@@ -16,7 +16,7 @@ jobs:
         name: Create release
         uses: softprops/action-gh-release@v2
         with:
-          name: Mixxx Merge ${{ github.ref_name }}
+          name: MixxxKit ${{ github.ref_name }}
     outputs:
       upload_url: ${{ steps.create.outputs.upload_url }}
   upload:
@@ -26,24 +26,27 @@ jobs:
       matrix:
         config:
           - os: ubuntu-latest
+            cmd: sudo apt install -y musl-tools
             target: x86_64-unknown-linux-musl
-            asset_file: mixxx-merge
-            asset_name: mixxx-merge-linux
+            asset_file: mixxxkit
+            asset_name: mixxxkit-linux
           - os: macos-latest
+            cmd: echo 'No native dependencies needed'
             target: x86_64-apple-darwin
-            asset_file: mixxx-merge
-            asset_name: mixxx-merge-macos
+            asset_file: mixxxkit
+            asset_name: mixxxkit-macos
           - os: windows-latest
+            cmd: echo 'No native dependencies needed'
             target: x86_64-pc-windows-msvc
-            asset_file: mixxx-merge.exe
-            asset_name: mixxx-merge-windows.exe
+            asset_file: mixxxkit.exe
+            asset_name: mixxxkit-windows.exe
     runs-on: ${{ matrix.config.os }}
     steps:
       - uses: actions/checkout@v1
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           target: ${{ matrix.config.target }}
-      - run: cargo build --release --target ${{ matrix.config.target }}
+      - run: ${{ matrix.config.cmd }} && cargo build --release --target ${{ matrix.config.target }}
       - uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ github.token }}
