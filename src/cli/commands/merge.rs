@@ -51,7 +51,7 @@ fn prompt_for_databases() -> DatabasePaths {
         .prompt()
         .unwrap()
         .normalize_path();
-    println!("Normalized to \"{source}\"");
+    println!(r#"Normalized to "{source}""#);
 
     let target = Text::new("Path to target database:")
         .with_validator(database::Validator)
@@ -59,14 +59,14 @@ fn prompt_for_databases() -> DatabasePaths {
         .prompt()
         .unwrap()
         .normalize_path();
-    println!("Normalized to \"{target}\"");
+    println!(r#"Normalized to "{target}""#);
 
     let output = Text::new("Path to output database:")
         .with_default("mixxxdb.sqlite")
         .prompt()
         .unwrap()
         .normalize_path();
-    println!("Normalized to \"{output}\"");
+    println!(r#"Normalized to "{output}""#);
 
     DatabasePaths {
         source,
@@ -78,14 +78,14 @@ fn prompt_for_databases() -> DatabasePaths {
 fn prompt_for_directories(dirs: &[directories::Model]) -> HashMap<String, String> {
     let mut map = HashMap::<String, String>::with_capacity(dirs.len());
     for dir in dirs {
-        let path = Text::new(&format!("Replacement path for \"{}\":", &dir.directory))
+        let path = Text::new(&format!(r#"Replacement path for "{}":"#, &dir.directory))
             .with_validator(directory::Validator)
             .prompt()
             .unwrap()
             .trim()
             .replace('\\', "/")
             .normalize_path();
-        println!("Normalized to \"{path}\"");
+        println!(r#"Normalized to "{path}""#);
         if !path.is_empty() {
             map.insert(dir.directory.clone(), path);
         }

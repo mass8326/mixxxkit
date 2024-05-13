@@ -41,7 +41,7 @@ mod tests {
 
     #[test]
     fn str_normalize_path() {
-        let result = " \"C:\\Test\\Dir\" ".normalize_path();
+        let result = r#" "C:\Test\Dir" "#.normalize_path();
         assert_eq!(result, "C:/Test/Dir");
     }
 }

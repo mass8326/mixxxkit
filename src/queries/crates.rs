@@ -7,7 +7,7 @@ pub async fn get_by_name_or_create(db: &DatabaseConnection, name: &str) -> Resul
         .one(db)
         .await?;
     if let Some(track_crate) = crate_maybe {
-        println!("Found crate \"{name}\" with id \"{}\"", track_crate.id);
+        println!(r#"Found crate "{name}" with id "{}""#, track_crate.id);
         return Ok(track_crate.id);
     }
 
@@ -19,7 +19,7 @@ pub async fn get_by_name_or_create(db: &DatabaseConnection, name: &str) -> Resul
     .await?;
 
     println!(
-        "Created crate \"{name}\" with id \"{}\"",
+        r#"Created crate "{name}" with id "{}""#,
         result.last_insert_id
     );
     Ok(result.last_insert_id)
@@ -44,11 +44,11 @@ pub async fn connect_track_by_location(
         .one(db)
         .await?
     else {
-        println!("Could not find track location \"{path}\"");
+        println!(r#"Could not find track location "{path}""#);
         return Ok(None);
     };
     println!(
-        "Found track location \"{path}\" with location id \"{}\" and track id \"{}\"",
+        r#"Connecting "{path}" with location id "{}" and track id "{}" to crate id "{crate_id}""#,
         location.id, track.id,
     );
 

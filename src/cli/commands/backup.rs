@@ -24,6 +24,9 @@ pub fn run() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     target.push(PathBuf::from(filename));
     copy(&source, &target)?;
 
-    println!("Successfully backed up to \"{}\"", target.to_string_lossy());
+    println!(
+        r#"Successfully backed up to "{}""#,
+        target.to_string_lossy()
+    );
     Ok(())
 }

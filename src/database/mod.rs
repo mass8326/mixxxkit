@@ -20,7 +20,7 @@ pub fn get_mixxx_database_path() -> PathBuf {
 #[must_use]
 pub fn get_mixxx_directory() -> PathBuf {
     let Some(localappdata) = std::env::var_os("LOCALAPPDATA") else {
-        panic!("\"%localappdata%\" is not set!")
+        panic!(r#""%localappdata%" is not set!"#)
     };
     [localappdata, "Mixxx".into()].iter().collect()
 }
