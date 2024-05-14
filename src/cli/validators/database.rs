@@ -1,13 +1,13 @@
 use crate::cli::extensions::NormalizePath;
+use crate::database::get_sqlite_connection;
 use inquire::validator::{StringValidator, Validation};
 use inquire::CustomUserError;
-use mixxxkit::database::get_sqlite_connection;
 use sea_orm::{ConnectionTrait, DatabaseBackend, DbErr, Statement};
 use std::path::Path;
 use tokio::{runtime, task};
 
 #[derive(Clone)]
-pub struct Validator;
+pub struct Database;
 
 async fn can_open_database(path: &str) -> Result<(), DbErr> {
     let db = get_sqlite_connection(path).await?;
@@ -19,7 +19,7 @@ async fn can_open_database(path: &str) -> Result<(), DbErr> {
     Ok(())
 }
 
-impl StringValidator for Validator {
+impl StringValidator for Database {
     fn validate(&self, path: &str) -> Result<Validation, CustomUserError> {
         let normalized = path.normalize_path();
         if normalized.is_empty() {
@@ -47,20 +47,20 @@ mod tests {
 
     #[test]
     fn fails_empty_string() {
-        let result = Validator.validate("").unwrap();
+        let result = Database.validate("").unwrap();
         let expected = Validation::Invalid("Path is required!".into());
         assert_eq!(result, expected);
     }
     #[test]
     fn fails_missing_path() {
-        let result = Validator.validate(".nonexistent").unwrap();
+        let result = Database.validate(".nonexistent").unwrap();
         let expected = Validation::Invalid("Could not find database at path!".into());
         assert_eq!(result, expected);
     }
 
     #[test]
     fn fails_invalid_file() {
-        let result = Validator.validate(".gitignore").unwrap();
+        let result = Database.validate(".gitignore").unwrap();
         let expected = Validation::Invalid("File is not a valid database!".into());
         assert_eq!(result, expected);
     }

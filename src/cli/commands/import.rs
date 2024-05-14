@@ -1,12 +1,11 @@
-use crate::cli::{extensions::NormalizePath, validators::directory};
+use crate::cli::{extensions::NormalizePath, validators};
+use crate::database::{
+    disable_fk_constraints, enable_fk_constraints,
+    functions::crates::{clear_crate_tracks, connect_track_by_location, get_by_name_or_create},
+    get_mixxx_directory, get_sqlite_connection,
+};
 use futures_util::future::join_all;
 use inquire::Text;
-use mixxxkit::{
-    database::{
-        disable_fk_constraints, enable_fk_constraints, get_mixxx_directory, get_sqlite_connection,
-    },
-    queries::crates::{clear_crate_tracks, connect_track_by_location, get_by_name_or_create},
-};
 use std::{
     collections::{HashMap, HashSet},
     error::Error,
@@ -109,7 +108,7 @@ pub async fn run() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
 
 fn prompt() -> String {
     Text::new("Path to playlists folder:")
-        .with_validator(directory::Validator)
+        .with_validator(validators::Directory)
         .prompt()
         .unwrap()
         .normalize_path()

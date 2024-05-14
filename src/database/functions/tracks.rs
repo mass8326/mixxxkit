@@ -1,5 +1,4 @@
-use crate::entities::library;
-use crate::queries::util::str_coalesce;
+use crate::database::schema::library;
 use sea_orm::sea_query::SqliteQueryBuilder;
 use sea_orm::{
     ActiveValue, ConnectionTrait, DatabaseBackend, DatabaseConnection, DbErr, EntityTrait,
@@ -39,8 +38,8 @@ pub async fn insert<S: BuildHasher>(
     for (i, track) in tracks.into_iter().enumerate() {
         println!(
             "Track #{i} '{} - {}'",
-            str_coalesce(&track.artist, "[N/A]"),
-            str_coalesce(&track.title, "[N/A]"),
+            &track.artist.as_deref().unwrap_or("[N/A]"),
+            &track.title.as_deref().unwrap_or("[N/A]"),
         );
         if let Some(mapped_id) = location_map.get(&track.id) {
             let prev_id = track.id;

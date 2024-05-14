@@ -1,7 +1,7 @@
-use crate::cli::validators::database;
+use crate::cli::validators;
+use crate::database::{get_mixxx_database_path, get_mixxx_directory};
 use chrono::Utc;
 use inquire::validator::{StringValidator, Validation};
-use mixxxkit::database::{get_mixxx_database_path, get_mixxx_directory};
 use std::{
     error::Error,
     fs::{copy, create_dir_all},
@@ -10,7 +10,7 @@ use std::{
 
 pub fn run() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     let source = get_mixxx_database_path();
-    let validation = database::Validator.validate(&source.to_string_lossy())?;
+    let validation = validators::Database.validate(&source.to_string_lossy())?;
     assert!(
         Validation::Valid == validation,
         "Could not find Mixxx database!"

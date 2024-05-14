@@ -1,4 +1,4 @@
-use crate::entities::directories;
+use crate::database::schema::directories;
 use sea_orm::{ActiveValue, DatabaseConnection, DbErr, EntityTrait};
 use std::{collections::HashMap, hash::BuildHasher};
 

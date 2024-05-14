@@ -1,4 +1,4 @@
-use crate::entities::{crate_tracks, crates, library, track_locations};
+use crate::database::schema::{crate_tracks, crates, library, track_locations};
 use sea_orm::{ActiveValue, ColumnTrait, DatabaseConnection, DbErr, EntityTrait, QueryFilter};
 
 pub async fn get_by_name_or_create(db: &DatabaseConnection, name: &str) -> Result<i32, DbErr> {

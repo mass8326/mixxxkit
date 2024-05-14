@@ -1,4 +1,5 @@
 mod cli;
+mod database;
 
 use clap::Parser;
 use cli::commands::{Cli, Command, Run};

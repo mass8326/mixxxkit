@@ -1,3 +1,6 @@
+pub mod functions;
+pub mod schema;
+
 use sea_orm::{
     ConnectOptions, ConnectionTrait, Database, DatabaseBackend, DatabaseConnection, DbErr,
     Statement,

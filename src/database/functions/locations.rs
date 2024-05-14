@@ -1,4 +1,4 @@
-use crate::{entities::track_locations, queries::util::str_coalesce};
+use crate::database::schema::track_locations;
 use sea_orm::{ActiveValue, DatabaseConnection, DbErr, EntityTrait, IntoActiveModel};
 use std::{collections::HashMap, hash::BuildHasher};
 
@@ -13,7 +13,10 @@ pub async fn insert<S: BuildHasher>(
 ) -> Result<HashMap<i32, i32>, DbErr> {
     let mut location_map = HashMap::with_capacity(locations.len());
     for (i, loc) in locations.into_iter().enumerate() {
-        println!("Location #{i} '{}'", str_coalesce(&loc.location, "[N/A]"));
+        println!(
+            "Location #{i} '{}'",
+            &loc.location.as_deref().unwrap_or("[N/A]")
+        );
         let prev_id = loc.id;
         let data = track_locations::ActiveModel {
             id: ActiveValue::NotSet,
