@@ -15,6 +15,9 @@ sea-orm = { version = "0.12", features = [
 inquire = "0.7.5"
 clap = { version = "4.5.4", features = ["derive"] }
 chrono = "0.4.38"
+yaml-rust = "0.4.5"
+indoc = "2.0.5"
+futures-util = "0.3.30"
 
 [lints.clippy]
 pedantic = { level = "deny", priority = -1 }
