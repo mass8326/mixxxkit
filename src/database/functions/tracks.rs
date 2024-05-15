@@ -1,4 +1,5 @@
 use crate::database::schema::library;
+use log::{debug, warn};
 use sea_orm::sea_query::SqliteQueryBuilder;
 use sea_orm::{
     ActiveValue, ConnectionTrait, DatabaseBackend, DatabaseConnection, DbErr, EntityTrait,
@@ -35,12 +36,7 @@ pub async fn insert<S: BuildHasher>(
     tracks: Vec<library::Model>,
     location_map: &HashMap<i32, i32, S>,
 ) -> Result<(), DbErr> {
-    for (i, track) in tracks.into_iter().enumerate() {
-        println!(
-            "Track #{i} '{} - {}'",
-            &track.artist.as_deref().unwrap_or("[N/A]"),
-            &track.title.as_deref().unwrap_or("[N/A]"),
-        );
+    for track in tracks {
         if let Some(mapped_id) = location_map.get(&track.id) {
             let prev_id = track.id;
             let input = library::ActiveModel {
@@ -49,9 +45,13 @@ pub async fn insert<S: BuildHasher>(
                 ..track.into()
             };
             library::Entity::insert(input).exec(db).await?;
-            println!("Location id mapped from '{prev_id}' to '{mapped_id}'");
+            debug!(r#"Location id mapped from "{prev_id}" to "{mapped_id}""#);
         } else {
-            println!("Could not find mapped location id! Skipping...");
+            warn!(
+                r#"Could not find the location of "{} - {}"! Skipping..."#,
+                &track.artist.as_deref().unwrap_or("<N/A>"),
+                &track.title.as_deref().unwrap_or("<N/A>")
+            );
         };
     }
     Ok(())

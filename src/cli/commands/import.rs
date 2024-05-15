@@ -6,6 +6,8 @@ use crate::database::{
 };
 use futures_util::future::join_all;
 use inquire::Text;
+use log::{error, info, trace, warn};
+use std::process;
 use std::{
     collections::{HashMap, HashSet},
     error::Error,
@@ -42,7 +44,7 @@ pub async fn run() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
             .as_ref()
             .and_then(|map| {
                 let vec = map.get(&filestem)?;
-                println!(r#"Mapping "{filestem}" to ["{}"]"#, vec.join(r#"", ""#));
+                trace!(r#"Mapping "{filestem}" to ["{}"]"#, vec.join(r#"", ""#));
                 Some(vec.to_owned())
             })
             .unwrap_or_else(|| vec![filestem])
@@ -65,13 +67,13 @@ pub async fn run() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
             if !cleared_crates.contains(id) {
                 cleared_crates.insert(*id);
                 match clear_crate_tracks(db, *id).await {
-                    Ok(()) => println!(r#"Cleared tracks from crate id "{id}""#),
-                    Err(_) => println!(r#"Unable to clear tracks from crate id "{id}"!"#),
+                    Ok(()) => trace!(r#"Cleared tracks from crate id "{id}""#),
+                    Err(_) => warn!(r#"Unable to clear tracks from crate id "{id}""#),
                 }
             }
         }
 
-        println!(
+        trace!(
             r#"Connecting tracks to crate ids ["{}"]"#,
             crate_ids
                 .iter()
@@ -103,6 +105,7 @@ pub async fn run() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     }
 
     enable_fk_constraints(db).await?;
+    info!("Successfully imported crates");
     Ok(())
 }
 
@@ -123,19 +126,24 @@ fn get_crate_map<P: AsRef<Path>>(dir: P) -> Option<HashMap<String, Vec<String>>>
     let path = dir.as_ref().join("mixxxkit.crates.yaml");
     let contents = match read_to_string(path) {
         Ok(contents) => contents,
-        Err(error) => {
-            return match error.kind() {
+        Err(err) => {
+            return match err.kind() {
                 ErrorKind::NotFound => None,
                 ErrorKind::PermissionDenied => {
-                    panic!("mixxxkit.crates.yaml found but permissions are insufficient to read!")
+                    error!("mixxxkit.crates.yaml found but permissions are insufficient to read");
+                    process::exit(1);
                 }
                 _ => {
-                    panic!("mixxxkit.crates.yaml found but ran into {error:?}")
+                    error!("mixxxkit.crates.yaml found but ran into {err:?}");
+                    process::exit(1);
                 }
             };
         }
     };
-    parse_crate_map(&contents).or_else(|| panic!("mixxxkit.crates.yaml found but not parseable!"))
+    parse_crate_map(&contents).or_else(|| {
+        error!("mixxxkit.crates.yaml found but not parseable");
+        process::exit(1);
+    })
 }
 
 fn parse_crate_map(str: &str) -> Option<HashMap<String, Vec<String>>> {

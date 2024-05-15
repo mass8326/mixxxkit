@@ -1,11 +1,12 @@
 pub mod functions;
 pub mod schema;
 
+use log::error;
 use sea_orm::{
     ConnectOptions, ConnectionTrait, Database, DatabaseBackend, DatabaseConnection, DbErr,
     Statement,
 };
-use std::path::PathBuf;
+use std::{path::PathBuf, process};
 
 pub async fn get_sqlite_connection(path: &str) -> Result<DatabaseConnection, DbErr> {
     let url = String::from("sqlite://") + path;
@@ -23,7 +24,8 @@ pub fn get_mixxx_database_path() -> PathBuf {
 #[must_use]
 pub fn get_mixxx_directory() -> PathBuf {
     let Some(localappdata) = std::env::var_os("LOCALAPPDATA") else {
-        panic!(r#""%localappdata%" is not set!"#)
+        error!(r#"Could not find Mixxx database because "%localappdata%" is not set"#);
+        process::exit(1);
     };
     [localappdata, "Mixxx".into()].iter().collect()
 }

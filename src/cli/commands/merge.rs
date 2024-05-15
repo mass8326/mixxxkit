@@ -4,6 +4,7 @@ use crate::database::{
     schema::directories,
 };
 use inquire::Text;
+use log::{debug, info};
 use std::{collections::HashMap, error::Error, fs::copy};
 use tokio::try_join;
 
@@ -30,7 +31,7 @@ pub async fn run() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     functions::tracks::insert(&output, tracks, &loc_map).await?;
 
     enable_fk_constraints(&output).await?;
-
+    info!("Successfully merged libraries");
     Ok(())
 }
 
@@ -47,7 +48,7 @@ fn prompt_for_databases() -> DatabasePaths {
         .prompt()
         .unwrap()
         .normalize_path();
-    println!(r#"Normalized to "{source}""#);
+    debug!(r#"Input normalized to "{source}""#);
 
     let target = Text::new("Path to target database:")
         .with_validator(validators::Database)
@@ -55,14 +56,14 @@ fn prompt_for_databases() -> DatabasePaths {
         .prompt()
         .unwrap()
         .normalize_path();
-    println!(r#"Normalized to "{target}""#);
+    debug!(r#"Input normalized to "{target}""#);
 
     let output = Text::new("Path to output database:")
         .with_default("mixxxdb.sqlite")
         .prompt()
         .unwrap()
         .normalize_path();
-    println!(r#"Normalized to "{output}""#);
+    debug!(r#"Input normalized to "{output}""#);
 
     DatabasePaths {
         source,
@@ -81,7 +82,7 @@ fn prompt_for_directories(dirs: &[directories::Model]) -> HashMap<String, String
             .trim()
             .replace('\\', "/")
             .normalize_path();
-        println!(r#"Normalized to "{path}""#);
+        debug!(r#"Normalized to "{path}""#);
         if !path.is_empty() {
             map.insert(dir.directory.clone(), path);
         }

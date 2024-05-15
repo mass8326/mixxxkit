@@ -1,4 +1,5 @@
 use crate::database::schema::track_locations;
+use log::debug;
 use sea_orm::{ActiveValue, DatabaseConnection, DbErr, EntityTrait, IntoActiveModel};
 use std::{collections::HashMap, hash::BuildHasher};
 
@@ -12,11 +13,7 @@ pub async fn insert<S: BuildHasher>(
     directory_map: Option<&HashMap<String, String, S>>,
 ) -> Result<HashMap<i32, i32>, DbErr> {
     let mut location_map = HashMap::with_capacity(locations.len());
-    for (i, loc) in locations.into_iter().enumerate() {
-        println!(
-            "Location #{i} '{}'",
-            &loc.location.as_deref().unwrap_or("[N/A]")
-        );
+    for loc in locations {
         let prev_id = loc.id;
         let data = track_locations::ActiveModel {
             id: ActiveValue::NotSet,
@@ -26,10 +23,9 @@ pub async fn insert<S: BuildHasher>(
             }
         };
         let result = track_locations::Entity::insert(data).exec(db).await?;
-
         location_map.insert(prev_id, result.last_insert_id);
-        println!(
-            "Mapping location id '{prev_id}' to '{}'",
+        debug!(
+            r#"Mapped location id "{prev_id}" to "{}""#,
             result.last_insert_id
         );
     }

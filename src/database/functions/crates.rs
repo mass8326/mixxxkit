@@ -1,4 +1,5 @@
 use crate::database::schema::{crate_tracks, crates, library, track_locations};
+use log::{debug, warn};
 use sea_orm::{ActiveValue, ColumnTrait, DatabaseConnection, DbErr, EntityTrait, QueryFilter};
 
 pub async fn get_by_name_or_create(db: &DatabaseConnection, name: &str) -> Result<i32, DbErr> {
@@ -7,7 +8,7 @@ pub async fn get_by_name_or_create(db: &DatabaseConnection, name: &str) -> Resul
         .one(db)
         .await?;
     if let Some(track_crate) = crate_maybe {
-        println!(r#"Found crate "{name}" with id "{}""#, track_crate.id);
+        debug!(r#"Found crate "{name}" with id "{}""#, track_crate.id);
         return Ok(track_crate.id);
     }
 
@@ -18,7 +19,7 @@ pub async fn get_by_name_or_create(db: &DatabaseConnection, name: &str) -> Resul
     .exec(db)
     .await?;
 
-    println!(
+    debug!(
         r#"Created crate "{name}" with id "{}""#,
         result.last_insert_id
     );
@@ -44,14 +45,14 @@ pub async fn connect_track_by_location(
         .one(db)
         .await?
     else {
-        println!(r#"Could not find track location "{path}""#);
+        warn!(r#"Could not find track location "{path}""#);
         return Ok(None);
     };
-    println!(
+
+    debug!(
         r#"Connecting "{path}" with location id "{}" and track id "{}" to crate id "{crate_id}""#,
         location.id, track.id,
     );
-
     let data = crate_tracks::ActiveModel {
         crate_id: ActiveValue::Set(crate_id),
         track_id: ActiveValue::Set(track.id),

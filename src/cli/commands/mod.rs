@@ -10,6 +10,10 @@ use strum::{Display, EnumIter};
 #[derive(Parser)]
 #[command(author, version, about)]
 pub struct Cli {
+    #[arg(short, long, global = true, value_names = ["module"])]
+    #[allow(clippy::option_option)]
+    pub debug: Option<Option<String>>,
+
     #[command(subcommand)]
     pub command: Option<Command>,
 }

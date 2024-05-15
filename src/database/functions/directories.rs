@@ -1,4 +1,5 @@
 use crate::database::schema::directories;
+use log::debug;
 use sea_orm::{ActiveValue, DatabaseConnection, DbErr, EntityTrait};
 use std::{collections::HashMap, hash::BuildHasher};
 
@@ -11,17 +12,21 @@ pub async fn insert<S: BuildHasher>(
     directories: &[directories::Model],
     directory_map: Option<&HashMap<String, String, S>>,
 ) -> Result<(), DbErr> {
-    for (i, dir) in directories.iter().enumerate() {
+    for dir in directories {
         let directory = &dir.directory;
-        println!("Directory #{i} '{}'", &directory);
         let data = directories::ActiveModel {
-            directory: match directory_map {
-                Some(map) => match map.get(directory) {
-                    Some(val) => ActiveValue::Set(val.clone()),
-                    None => ActiveValue::Unchanged(directory.clone()),
-                },
-                None => ActiveValue::Unchanged(directory.clone()),
-            },
+            directory: directory_map
+                .and_then(|map| map.get(directory))
+                .map_or_else(
+                    || {
+                        debug!(r#"Merging directory "{directory}" unchanged"#);
+                        ActiveValue::Unchanged(directory.to_string())
+                    },
+                    |val| {
+                        debug!(r#"Merging directory "{directory}" as "{val}""#);
+                        ActiveValue::Set(val.clone())
+                    },
+                ),
         };
         directories::Entity::insert(data).exec(db).await?;
     }
