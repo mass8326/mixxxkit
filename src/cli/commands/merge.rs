@@ -15,6 +15,8 @@ pub struct Args {
     pub source: Option<String>,
     pub target: Option<String>,
     pub output: Option<String>,
+    #[arg(short, long)]
+    pub force: bool,
 }
 
 pub async fn run(args: &Args) -> Result<(), CustomUserError> {
@@ -32,7 +34,10 @@ pub async fn run(args: &Args) -> Result<(), CustomUserError> {
 
     let source = get_sqlite_connection(&paths.source).await?;
     let dirs = functions::directories::get(&source).await?;
-    let dir_map = prompt_for_directories(&dirs);
+    let dir_map = match args.force {
+        false => Some(prompt_for_directories(&dirs)),
+        true => None,
+    };
 
     if paths.target != paths.output {
         copy(&paths.target, &paths.output)?;
@@ -40,10 +45,10 @@ pub async fn run(args: &Args) -> Result<(), CustomUserError> {
 
     let output = get_sqlite_connection(&paths.output).await?;
     let txn = begin_transaction(&output).await?;
-    functions::directories::insert(&txn, &dirs, Some(&dir_map)).await?;
+    functions::directories::insert(&txn, &dirs, dir_map.as_ref()).await?;
 
     let locs = functions::locations::get(&source).await?;
-    let loc_map = functions::locations::insert(&txn, locs, Some(&dir_map)).await?;
+    let loc_map = functions::locations::insert(&txn, locs, dir_map.as_ref()).await?;
 
     let tracks = functions::tracks::get(&source).await?;
     functions::tracks::insert(&txn, tracks, &loc_map).await?;
@@ -72,8 +77,8 @@ fn prompt_for_databases(args: &Args) -> Result<DatabasePaths, CustomUserError> {
             )
         },
         |path| match validators::Database::Required.validate(path) {
-            Ok(Validation::Valid) => None,
-            _ => Some(path.to_owned()),
+            Ok(Validation::Valid) => Some(path.to_owned()),
+            _ => None,
         },
     ) else {
         error!("Source database invalid!");
