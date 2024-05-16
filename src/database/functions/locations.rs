@@ -1,5 +1,5 @@
 use crate::database::schema::track_locations;
-use log::debug;
+use log::{debug, warn};
 use sea_orm::{ActiveValue, DatabaseConnection, DbErr, EntityTrait, IntoActiveModel};
 use std::{collections::HashMap, hash::BuildHasher};
 
@@ -15,6 +15,7 @@ pub async fn insert<S: BuildHasher>(
     let mut location_map = HashMap::with_capacity(locations.len());
     for loc in locations {
         let prev_id = loc.id;
+        let prev_path = loc.location.clone().unwrap_or_else(|| "<N/A>".to_owned());
         let data = track_locations::ActiveModel {
             id: ActiveValue::NotSet,
             ..match directory_map {
@@ -22,10 +23,18 @@ pub async fn insert<S: BuildHasher>(
                 None => loc.into_active_model(),
             }
         };
-        let result = track_locations::Entity::insert(data).exec(db).await?;
+        let path = match data.location.clone() {
+            ActiveValue::Set(val) | ActiveValue::Unchanged(val) => val,
+            ActiveValue::NotSet => None,
+        }
+        .unwrap_or_else(|| "<N/A>".to_owned());
+        let Ok(result) = track_locations::Entity::insert(data).exec(db).await else {
+            warn!(r#"Could not insert location "{path}"! Skipping..."#,);
+            continue;
+        };
         location_map.insert(prev_id, result.last_insert_id);
         debug!(
-            r#"Mapped location id "{prev_id}" to "{}""#,
+            r#"Mapped "{prev_path}" with id "{prev_id}" to "{path}" with id "{}""#,
             result.last_insert_id
         );
     }

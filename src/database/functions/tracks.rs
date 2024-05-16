@@ -37,20 +37,26 @@ pub async fn insert<S: BuildHasher>(
     location_map: &HashMap<i32, i32, S>,
 ) -> Result<(), DbErr> {
     for track in tracks {
-        if let Some(mapped_id) = location_map.get(&track.id) {
-            let prev_id = track.id;
+        let display = format!(
+            r#""{} - {}""#,
+            &track.artist.as_deref().unwrap_or("<N/A>"),
+            &track.title.as_deref().unwrap_or("<N/A>")
+        );
+        let Some(prev_loc_id) = track.location else {
+            warn!(r#"Track {display} has no original location! Skipping..."#);
+            continue;
+        };
+        if let Some(mapped_loc_id) = location_map.get(&prev_loc_id) {
             let input = library::ActiveModel {
                 id: ActiveValue::NotSet,
-                location: ActiveValue::Set(Some(*mapped_id)),
+                location: ActiveValue::Set(Some(*mapped_loc_id)),
                 ..track.into()
             };
             library::Entity::insert(input).exec(db).await?;
-            debug!(r#"Location id mapped from "{prev_id}" to "{mapped_id}""#);
+            debug!(r#"Mapped location of {display} from "{prev_loc_id}" to "{mapped_loc_id}""#);
         } else {
             warn!(
-                r#"Could not find the location of "{} - {}"! Skipping..."#,
-                &track.artist.as_deref().unwrap_or("<N/A>"),
-                &track.title.as_deref().unwrap_or("<N/A>")
+                r#"Could not find new location of {display} with id "{prev_loc_id}"! Skipping..."#,
             );
         };
     }

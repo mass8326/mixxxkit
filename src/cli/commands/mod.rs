@@ -25,7 +25,7 @@ pub enum Command {
     #[command(about = "Import m3u8 files as crates into your library")]
     Import,
     #[command(about = "Merge two libraries together")]
-    Merge,
+    Merge(merge::Args),
 }
 
 pub trait Run {
@@ -37,7 +37,7 @@ impl Run for Command {
         match self {
             Command::Backup => backup::run(),
             Command::Import => import::run().await,
-            Command::Merge => merge::run().await,
+            Command::Merge(args) => merge::run(args).await,
         }
     }
 }

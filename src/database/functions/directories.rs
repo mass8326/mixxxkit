@@ -1,5 +1,5 @@
 use crate::database::schema::directories;
-use log::debug;
+use log::{debug, warn};
 use sea_orm::{ActiveValue, DatabaseConnection, DbErr, EntityTrait};
 use std::{collections::HashMap, hash::BuildHasher};
 
@@ -28,7 +28,10 @@ pub async fn insert<S: BuildHasher>(
                     },
                 ),
         };
-        directories::Entity::insert(data).exec(db).await?;
+        let Ok(_) = directories::Entity::insert(data).exec(db).await else {
+            warn!(r#"Could not insert directory "{directory}"! Skipping..."#,);
+            continue;
+        };
     }
     Ok(())
 }

@@ -111,7 +111,7 @@ pub async fn run() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
 
 fn prompt() -> String {
     Text::new("Path to playlists folder:")
-        .with_validator(validators::Directory)
+        .with_validator(validators::Directory::Required)
         .prompt()
         .unwrap()
         .normalize_path()

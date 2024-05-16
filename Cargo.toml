@@ -24,6 +24,7 @@ log = "0.4.21"
 
 [lints.clippy]
 pedantic = { level = "deny", priority = -1 }
+match_bool = "allow"
 missing_errors_doc = "allow"
 missing_panics_doc = "allow"
 single_match_else = "allow"

@@ -7,7 +7,16 @@ use std::path::Path;
 use tokio::{runtime, task};
 
 #[derive(Clone)]
-pub struct Database;
+pub enum Database {
+    Required,
+    Optional,
+}
+
+impl Database {
+    fn is_optional(&self) -> bool {
+        matches!(*self, Self::Optional)
+    }
+}
 
 async fn can_open_database(path: &str) -> Result<(), DbErr> {
     let db = get_sqlite_connection(path).await?;
@@ -21,6 +30,10 @@ async fn can_open_database(path: &str) -> Result<(), DbErr> {
 
 impl StringValidator for Database {
     fn validate(&self, path: &str) -> Result<Validation, CustomUserError> {
+        if self.is_optional() && path.is_empty() {
+            return Ok(Validation::Valid);
+        }
+
         let normalized = path.normalize_path();
         if normalized.is_empty() {
             return Ok(Validation::Invalid("Path is required!".into()));
@@ -46,21 +59,27 @@ mod tests {
     use super::*;
 
     #[test]
-    fn fails_empty_string() {
-        let result = Database.validate("").unwrap();
+    fn optional_passes_empty_string() {
+        let result = Database::Optional.validate("").unwrap();
+        let expected = Validation::Valid;
+        assert_eq!(result, expected);
+    }
+    #[test]
+    fn required_fails_empty_string() {
+        let result = Database::Required.validate("").unwrap();
         let expected = Validation::Invalid("Path is required!".into());
         assert_eq!(result, expected);
     }
     #[test]
     fn fails_missing_path() {
-        let result = Database.validate(".nonexistent").unwrap();
+        let result = Database::Required.validate(".nonexistent").unwrap();
         let expected = Validation::Invalid("Could not find database at path!".into());
         assert_eq!(result, expected);
     }
 
     #[test]
     fn fails_invalid_file() {
-        let result = Database.validate(".gitignore").unwrap();
+        let result = Database::Required.validate(".gitignore").unwrap();
         let expected = Validation::Invalid("File is not a valid database!".into());
         assert_eq!(result, expected);
     }
