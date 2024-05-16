@@ -12,9 +12,13 @@ use std::{collections::HashMap, fs::copy};
 
 #[derive(Parser, Debug, Default)]
 pub struct Args {
+    /// Source database to pull tracks from. If omitted, you will be prompted for paths.
     pub source: Option<String>,
+    /// Target database to merge into. If omitted, your installation database is targeted.
     pub target: Option<String>,
+    /// Output database as new file to this location. If omitted, target is edited in place.
     pub output: Option<String>,
+    /// Skip all prompts and force execution
     #[arg(short, long)]
     pub force: bool,
 }

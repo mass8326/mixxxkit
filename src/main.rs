@@ -16,7 +16,7 @@ async fn main() -> Result<(), CustomUserError> {
         None => "mixxxkit=info".to_owned(),
         Some(debug) => match debug {
             None => "mixxxkit=debug".to_owned(),
-            Some(module) => format!("{module}=trace"),
+            Some(module) => format!("mixxxkit=info,{module}=trace"),
         },
     };
     Logger::try_with_str(specification)?

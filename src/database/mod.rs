@@ -2,7 +2,6 @@ pub mod functions;
 pub mod schema;
 
 use inquire::CustomUserError;
-use log::error;
 use sea_orm::{
     ConnectOptions, ConnectionTrait, Database, DatabaseBackend, DatabaseConnection,
     DatabaseTransaction, DbErr, Statement, TransactionTrait,
@@ -22,6 +21,7 @@ pub fn get_mixxx_database_path() -> Result<PathBuf, CustomUserError> {
 
 #[cfg(target_os = "windows")]
 pub fn get_mixxx_directory() -> Result<PathBuf, CustomUserError> {
+    use log::error;
     use crate::error::MixxxkitExit;
 
     let Some(localappdata) = std::env::var_os("LOCALAPPDATA") else {

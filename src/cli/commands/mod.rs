@@ -9,6 +9,7 @@ use strum::{Display, EnumIter};
 #[derive(Parser)]
 #[command(author, version, about)]
 pub struct Cli {
+    /// Use debug logging and filter by module if provided
     #[arg(short, long, global = true, value_names = ["module"])]
     #[allow(clippy::option_option)]
     pub debug: Option<Option<String>>,
@@ -19,11 +20,14 @@ pub struct Cli {
 
 #[derive(EnumIter, Debug, Subcommand, Display)]
 pub enum Command {
-    #[command(about = "Create a backup of your current library")]
+    /// Create a backup of your installation database
+    #[command()]
     Backup,
-    #[command(about = "Import m3u8 files as crates into your library")]
+    /// Import m3u8 files as crates into your library
+    #[command()]
     Import,
-    #[command(about = "Merge two libraries together")]
+    /// Merge two libraries together
+    #[command()]
     Merge(merge::Args),
 }
 
