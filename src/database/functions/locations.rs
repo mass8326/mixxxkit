@@ -1,14 +1,14 @@
 use crate::database::schema::track_locations;
 use log::{debug, warn};
-use sea_orm::{ActiveValue, DatabaseConnection, DbErr, EntityTrait, IntoActiveModel};
+use sea_orm::{ActiveValue, ConnectionTrait, DbErr, EntityTrait, IntoActiveModel};
 use std::{collections::HashMap, hash::BuildHasher};
 
-pub async fn get(db: &DatabaseConnection) -> Result<Vec<track_locations::Model>, DbErr> {
+pub async fn get<C: ConnectionTrait>(db: &C) -> Result<Vec<track_locations::Model>, DbErr> {
     track_locations::Entity::find().all(db).await
 }
 
-pub async fn insert<S: BuildHasher>(
-    db: &DatabaseConnection,
+pub async fn insert<C: ConnectionTrait, S: BuildHasher>(
+    db: &C,
     locations: Vec<track_locations::Model>,
     directory_map: Option<&HashMap<String, String, S>>,
 ) -> Result<HashMap<i32, i32>, DbErr> {

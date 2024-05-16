@@ -1,31 +1,33 @@
 use crate::cli::{extensions::NormalizePath, validators};
 use crate::database::{
-    disable_fk_constraints, enable_fk_constraints,
+    begin_transaction, commit_transaction,
     functions::crates::{clear_crate_tracks, connect_track_by_location, get_by_name_or_create},
     get_mixxx_directory, get_sqlite_connection,
 };
-use futures_util::future::join_all;
-use inquire::Text;
+use crate::error::MixxxkitExit;
+use inquire::error::InquireResult;
+use inquire::{CustomUserError, Text};
 use log::{error, info, trace, warn};
-use std::process;
 use std::{
     collections::{HashMap, HashSet},
-    error::Error,
     fs::{read_dir, read_to_string, File},
     io::{self, BufRead, ErrorKind},
     path::{Path, PathBuf},
 };
 use yaml_rust::YamlLoader;
 
-pub async fn run() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
-    let dir = prompt();
-    let url: PathBuf = [get_mixxx_directory(), "mixxxdb.sqlite".into()]
+pub async fn run() -> Result<(), CustomUserError> {
+    let Some(dir) = prompt()? else {
+        return Ok(());
+    };
+    let url: PathBuf = [get_mixxx_directory()?, "mixxxdb.sqlite".into()]
         .into_iter()
         .collect();
-    let db = &get_sqlite_connection(&url.to_string_lossy()).await?;
-    disable_fk_constraints(db).await?;
 
-    let crate_map = get_crate_map(&dir);
+    let db = &get_sqlite_connection(&url.to_string_lossy()).await?;
+    let txn = begin_transaction(db).await?;
+
+    let crate_map = get_crate_map(&dir)?;
     let mut cleared_crates: HashSet<i32> = HashSet::new();
     for maybe_entry in read_dir(dir)? {
         let Ok(entry) = maybe_entry else {
@@ -40,7 +42,7 @@ pub async fn run() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         };
 
         let filestem = path.file_stem().unwrap().to_string_lossy().to_string();
-        let crate_futures = crate_map
+        let crate_names = crate_map
             .as_ref()
             .and_then(|map| {
                 let vec = map.get(&filestem)?;
@@ -48,25 +50,19 @@ pub async fn run() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
                 Some(vec.to_owned())
             })
             .unwrap_or_else(|| vec![filestem])
-            .into_iter()
-            .map(|name| async move {
-                let prefixed = "[MixxxKit] ".to_owned() + &name;
-                let Ok(id) = get_by_name_or_create(db, &prefixed).await else {
-                    return None;
-                };
-                Some(id)
-            });
-
-        let crate_ids: Vec<i32> = join_all(crate_futures)
-            .await
-            .into_iter()
-            .flatten()
-            .collect();
+            .into_iter();
+        let mut crate_ids: Vec<i32> = Vec::with_capacity(crate_names.len());
+        for name in crate_names {
+            let prefixed = "[MixxxKit] ".to_owned() + &name;
+            if let Ok(id) = get_by_name_or_create(&txn, &prefixed).await {
+                crate_ids.push(id);
+            };
+        }
 
         for id in &crate_ids {
             if !cleared_crates.contains(id) {
                 cleared_crates.insert(*id);
-                match clear_crate_tracks(db, *id).await {
+                match clear_crate_tracks(&txn, *id).await {
                     Ok(()) => trace!(r#"Cleared tracks from crate id "{id}""#),
                     Err(_) => warn!(r#"Unable to clear tracks from crate id "{id}""#),
                 }
@@ -95,7 +91,7 @@ pub async fn run() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
             }
             for crate_id in &crate_ids {
                 connect_track_by_location(
-                    db,
+                    &txn,
                     *crate_id,
                     &line_pathbuf.to_string_lossy().normalize_path(),
                 )
@@ -104,17 +100,16 @@ pub async fn run() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         }
     }
 
-    enable_fk_constraints(db).await?;
+    commit_transaction(txn).await?;
     info!("Successfully imported crates");
     Ok(())
 }
 
-fn prompt() -> String {
+fn prompt() -> InquireResult<Option<String>> {
     Text::new("Path to playlists folder:")
         .with_validator(validators::Directory::Required)
-        .prompt()
-        .unwrap()
-        .normalize_path()
+        .prompt_skippable()
+        .map(|maybe| maybe.map(NormalizePath::normalize_path))
 }
 
 fn read_lines<P: AsRef<Path>>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>> {
@@ -122,35 +117,38 @@ fn read_lines<P: AsRef<Path>>(filename: P) -> io::Result<io::Lines<io::BufReader
     Ok(io::BufReader::new(file).lines())
 }
 
-fn get_crate_map<P: AsRef<Path>>(dir: P) -> Option<HashMap<String, Vec<String>>> {
+fn get_crate_map<P: AsRef<Path>>(
+    dir: P,
+) -> Result<Option<HashMap<String, Vec<String>>>, CustomUserError> {
     let path = dir.as_ref().join("mixxxkit.crates.yaml");
     let contents = match read_to_string(path) {
         Ok(contents) => contents,
         Err(err) => {
             return match err.kind() {
-                ErrorKind::NotFound => None,
+                ErrorKind::NotFound => Ok(None),
                 ErrorKind::PermissionDenied => {
                     error!("mixxxkit.crates.yaml found but permissions are insufficient to read");
-                    process::exit(1);
+                    return Err(Box::new(MixxxkitExit));
                 }
                 _ => {
                     error!("mixxxkit.crates.yaml found but ran into {err:?}");
-                    process::exit(1);
+                    return Err(Box::new(MixxxkitExit));
                 }
             };
         }
     };
-    parse_crate_map(&contents).or_else(|| {
-        error!("mixxxkit.crates.yaml found but not parseable");
-        process::exit(1);
-    })
+    Ok(Some(parse_crate_map(&contents)?))
 }
 
-fn parse_crate_map(str: &str) -> Option<HashMap<String, Vec<String>>> {
+fn parse_crate_map(str: &str) -> Result<HashMap<String, Vec<String>>, CustomUserError> {
     let Ok(docs) = YamlLoader::load_from_str(str) else {
-        return None;
+        error!("mixxxkit.crates.yaml found but not parseable");
+        return Err(Box::new(MixxxkitExit));
     };
-    let forward_map = docs[0]["mappings"].as_hash()?;
+    let Some(forward_map) = docs[0]["mappings"].as_hash() else {
+        error!("mixxxkit.crates.yaml found but not parseable");
+        return Err(Box::new(MixxxkitExit));
+    };
     let mut reverse_map: HashMap<String, Vec<String>> = HashMap::new();
     for (key_raw, arr_raw) in forward_map {
         let (Some(key), Some(arr)) = (key_raw.as_str(), arr_raw.as_vec()) else {
@@ -164,7 +162,7 @@ fn parse_crate_map(str: &str) -> Option<HashMap<String, Vec<String>>> {
             vec.push(key.to_owned());
         }
     }
-    Some(reverse_map)
+    Ok(reverse_map)
 }
 
 #[cfg(test)]

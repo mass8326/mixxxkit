@@ -1,8 +1,8 @@
 use crate::database::schema::{crate_tracks, crates, library, track_locations};
 use log::{debug, warn};
-use sea_orm::{ActiveValue, ColumnTrait, DatabaseConnection, DbErr, EntityTrait, QueryFilter};
+use sea_orm::{ActiveValue, ColumnTrait, ConnectionTrait, DbErr, EntityTrait, QueryFilter};
 
-pub async fn get_by_name_or_create(db: &DatabaseConnection, name: &str) -> Result<i32, DbErr> {
+pub async fn get_by_name_or_create<C: ConnectionTrait>(db: &C, name: &str) -> Result<i32, DbErr> {
     let crate_maybe = crates::Entity::find()
         .filter(crates::Column::Name.eq(name))
         .one(db)
@@ -26,7 +26,7 @@ pub async fn get_by_name_or_create(db: &DatabaseConnection, name: &str) -> Resul
     Ok(result.last_insert_id)
 }
 
-pub async fn clear_crate_tracks(db: &DatabaseConnection, crate_id: i32) -> Result<(), DbErr> {
+pub async fn clear_crate_tracks<C: ConnectionTrait>(db: &C, crate_id: i32) -> Result<(), DbErr> {
     crate_tracks::Entity::delete_many()
         .filter(crate_tracks::Column::CrateId.eq(crate_id))
         .exec(db)
@@ -34,8 +34,8 @@ pub async fn clear_crate_tracks(db: &DatabaseConnection, crate_id: i32) -> Resul
     Ok(())
 }
 
-pub async fn connect_track_by_location(
-    db: &DatabaseConnection,
+pub async fn connect_track_by_location<C: ConnectionTrait>(
+    db: &C,
     crate_id: i32,
     path: &str,
 ) -> Result<Option<()>, DbErr> {

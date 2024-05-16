@@ -1,14 +1,14 @@
 use crate::cli::{extensions::NormalizePath, validators};
 use crate::database::get_mixxx_database_path;
 use crate::database::{
-    disable_fk_constraints, enable_fk_constraints, functions, get_sqlite_connection,
-    schema::directories,
+    begin_transaction, commit_transaction, functions, get_sqlite_connection, schema::directories,
 };
+use crate::error::MixxxkitExit;
 use clap::Parser;
 use inquire::validator::{StringValidator, Validation};
-use inquire::{Confirm, Text};
+use inquire::{Confirm, CustomUserError, Text};
 use log::{debug, error, info};
-use std::{collections::HashMap, error::Error, fs::copy};
+use std::{collections::HashMap, fs::copy};
 
 #[derive(Parser, Debug, Default)]
 pub struct Args {
@@ -17,9 +17,9 @@ pub struct Args {
     pub output: Option<String>,
 }
 
-pub async fn run(args: &Args) -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
-    let paths = prompt_for_databases(args);
-    if args.target.is_none() && get_mixxx_database_path().to_string_lossy() == paths.output {
+pub async fn run(args: &Args) -> Result<(), CustomUserError> {
+    let paths = prompt_for_databases(args)?;
+    if args.target.is_none() && get_mixxx_database_path()?.to_string_lossy() == paths.output {
         let check =
             Confirm::new("You are going to edit your Mixxx database in-place. Are you sure? (y/n)")
                 .with_help_message("Please make a backup of your database before continuing!")
@@ -39,16 +39,16 @@ pub async fn run(args: &Args) -> Result<(), Box<dyn Error + Send + Sync + 'stati
     }
 
     let output = get_sqlite_connection(&paths.output).await?;
-    disable_fk_constraints(&output).await?;
-    functions::directories::insert(&output, &dirs, Some(&dir_map)).await?;
+    let txn = begin_transaction(&output).await?;
+    functions::directories::insert(&txn, &dirs, Some(&dir_map)).await?;
 
     let locs = functions::locations::get(&source).await?;
-    let loc_map = functions::locations::insert(&output, locs, Some(&dir_map)).await?;
+    let loc_map = functions::locations::insert(&txn, locs, Some(&dir_map)).await?;
 
     let tracks = functions::tracks::get(&source).await?;
-    functions::tracks::insert(&output, tracks, &loc_map).await?;
+    functions::tracks::insert(&txn, tracks, &loc_map).await?;
 
-    enable_fk_constraints(&output).await?;
+    commit_transaction(txn).await?;
     info!("Successfully merged libraries");
     Ok(())
 }
@@ -59,27 +59,29 @@ struct DatabasePaths {
     pub output: String,
 }
 
-fn prompt_for_databases(args: &Args) -> DatabasePaths {
-    let source = args.source.as_ref().map_or_else(
+fn prompt_for_databases(args: &Args) -> Result<DatabasePaths, CustomUserError> {
+    let Some(source) = args.source.as_ref().map_or_else(
         || {
-            Text::new("Path to source database:")
-                .with_validator(validators::Database::Required)
-                .with_help_message("Enter the database that you want to pull songs from")
-                .prompt()
-                .unwrap()
-                .normalize_path()
+            Some(
+                Text::new("Path to source database:")
+                    .with_validator(validators::Database::Required)
+                    .with_help_message("Enter the database that you want to pull songs from")
+                    .prompt()
+                    .unwrap()
+                    .normalize_path(),
+            )
         },
-        |path| {
-            let Ok(Validation::Valid) = validators::Database::Required.validate(path) else {
-                error!("Source database invalid!");
-                std::process::exit(1);
-            };
-            path.to_owned()
+        |path| match validators::Database::Required.validate(path) {
+            Ok(Validation::Valid) => None,
+            _ => Some(path.to_owned()),
         },
-    );
+    ) else {
+        error!("Source database invalid!");
+        return Err(Box::new(MixxxkitExit));
+    };
     debug!(r#"Source path set to "{source}""#);
 
-    let target = match args.source {
+    let Some(target) = match args.source {
         None => {
             let result = Text::new("Path to target database:")
                 .with_help_message("Leave blank to target your current Mixxx database")
@@ -94,7 +96,16 @@ fn prompt_for_databases(args: &Args) -> DatabasePaths {
         }
         Some(_) => None,
     }
-    .unwrap_or_else(|| get_mixxx_database_path().to_string_lossy().to_string());
+    .or_else(|| {
+        Some(
+            get_mixxx_database_path()
+                .ok()?
+                .to_string_lossy()
+                .to_string(),
+        )
+    }) else {
+        return Err(Box::new(MixxxkitExit));
+    };
     debug!(r#"Target path set to "{target}""#);
 
     let output = match args.source {
@@ -117,11 +128,11 @@ fn prompt_for_databases(args: &Args) -> DatabasePaths {
     .unwrap_or_else(|| target.clone());
     debug!(r#"Output path set to "{output}""#);
 
-    DatabasePaths {
+    Ok(DatabasePaths {
         source,
         target,
         output,
-    }
+    })
 }
 
 fn prompt_for_directories(dirs: &[directories::Model]) -> HashMap<String, String> {

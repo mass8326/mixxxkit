@@ -2,8 +2,8 @@ use crate::database::schema::library;
 use log::{debug, warn};
 use sea_orm::sea_query::SqliteQueryBuilder;
 use sea_orm::{
-    ActiveValue, ConnectionTrait, DatabaseBackend, DatabaseConnection, DbErr, EntityTrait,
-    FromQueryResult, QueryTrait, Statement,
+    ActiveValue, ConnectionTrait, DatabaseBackend, DbErr, EntityTrait, FromQueryResult, QueryTrait,
+    Statement,
 };
 use std::collections::HashMap;
 use std::hash::BuildHasher;
@@ -15,7 +15,7 @@ use std::hash::BuildHasher;
 /// grab cuepoints from the `QueryResult` ourselves
 ///
 /// <https://github.com/SeaQL/sea-orm/issues/1558>
-pub async fn get(db: &DatabaseConnection) -> Result<Vec<library::Model>, DbErr> {
+pub async fn get<C: ConnectionTrait>(db: &C) -> Result<Vec<library::Model>, DbErr> {
     let tracks_sql = library::Entity::find()
         .into_query()
         .to_string(SqliteQueryBuilder);
@@ -31,8 +31,8 @@ pub async fn get(db: &DatabaseConnection) -> Result<Vec<library::Model>, DbErr> 
     Ok(tracks)
 }
 
-pub async fn insert<S: BuildHasher>(
-    db: &DatabaseConnection,
+pub async fn insert<C: ConnectionTrait, S: BuildHasher>(
+    db: &C,
     tracks: Vec<library::Model>,
     location_map: &HashMap<i32, i32, S>,
 ) -> Result<(), DbErr> {

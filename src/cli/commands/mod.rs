@@ -2,9 +2,8 @@ mod backup;
 mod import;
 mod merge;
 
-use std::error::Error;
-
 use clap::{Parser, Subcommand};
+use inquire::CustomUserError;
 use strum::{Display, EnumIter};
 
 #[derive(Parser)]
@@ -29,11 +28,11 @@ pub enum Command {
 }
 
 pub trait Run {
-    async fn run(&self) -> Result<(), Box<dyn Error + Send + Sync + 'static>>;
+    async fn run(&self) -> Result<(), CustomUserError>;
 }
 
 impl Run for Command {
-    async fn run(&self) -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
+    async fn run(&self) -> Result<(), CustomUserError> {
         match self {
             Command::Backup => backup::run(),
             Command::Import => import::run().await,

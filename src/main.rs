@@ -1,15 +1,15 @@
 mod cli;
 mod database;
+mod error;
 
 use clap::Parser;
 use cli::commands::{Cli, Command, Run};
 use flexi_logger::Logger;
-use inquire::Select;
-use std::error::Error;
+use inquire::{error::InquireResult, CustomUserError, Select};
 use strum::IntoEnumIterator;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
+async fn main() -> Result<(), CustomUserError> {
     let cli = Cli::parse();
 
     let specification = match &cli.debug {
@@ -23,11 +23,15 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         .log_to_stdout()
         .start()?;
 
-    cli.command.unwrap_or_else(prompt).run().await
+    match cli.command {
+        Some(cmd) => cmd.run().await,
+        None => match prompt()? {
+            Some(cmd) => cmd.run().await,
+            _ => Ok(()),
+        },
+    }
 }
 
-fn prompt() -> Command {
-    Select::new("What would you like to do?", Command::iter().collect())
-        .prompt()
-        .unwrap()
+fn prompt() -> InquireResult<Option<Command>> {
+    Select::new("What would you like to do?", Command::iter().collect()).prompt_skippable()
 }
