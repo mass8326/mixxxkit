@@ -8,7 +8,7 @@
   "bin": "src/bin.ts",
   "scripts": {
     "dev": "cargo run",
-    "lint": "cargo clippy && cargo fmt",
+    "lint": "cargo clippy && cargo fmt --check",
     "test": "cargo test",
     "build": "cargo build --release",
     "prepare": "husky"

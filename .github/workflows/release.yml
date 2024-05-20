@@ -12,13 +12,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - id: check
-        name: Check version
-        uses: technote-space/package-version-check-action@v1
-        with:
-          COMMIT_DISABLED: 1
       - id: create
-        name: Create release
         uses: softprops/action-gh-release@v2
         with:
           name: MixxxKit ${{ github.ref_name }}
