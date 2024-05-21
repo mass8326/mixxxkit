@@ -1,6 +1,13 @@
 use crate::database::schema::{crate_tracks, crates, library, track_locations};
-use log::{debug, warn};
+use log::debug;
 use sea_orm::{ActiveValue, ColumnTrait, ConnectionTrait, DbErr, EntityTrait, QueryFilter};
+
+pub async fn get_by_id<C: ConnectionTrait>(
+    db: &C,
+    id: i32,
+) -> Result<Option<crates::Model>, DbErr> {
+    crates::Entity::find_by_id(id).one(db).await
+}
 
 pub async fn get_by_name_or_create<C: ConnectionTrait>(db: &C, name: &str) -> Result<i32, DbErr> {
     let crate_maybe = crates::Entity::find()
@@ -45,7 +52,6 @@ pub async fn connect_track_by_location<C: ConnectionTrait>(
         .one(db)
         .await?
     else {
-        warn!(r#"Could not find track location "{path}""#);
         return Ok(None);
     };
 
@@ -57,7 +63,6 @@ pub async fn connect_track_by_location<C: ConnectionTrait>(
         crate_id: ActiveValue::Set(crate_id),
         track_id: ActiveValue::Set(track.id),
     };
-    let _ = crate_tracks::Entity::insert(data).exec(db).await;
-
+    crate_tracks::Entity::insert(data).exec(db).await?;
     Ok(Some(()))
 }

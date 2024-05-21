@@ -21,8 +21,8 @@ pub fn get_mixxx_database_path() -> Result<PathBuf, CustomUserError> {
 
 #[cfg(target_os = "windows")]
 pub fn get_mixxx_directory() -> Result<PathBuf, CustomUserError> {
-    use log::error;
     use crate::error::MixxxkitExit;
+    use log::error;
 
     let Some(localappdata) = std::env::var_os("LOCALAPPDATA") else {
         error!(r#"Could not find Mixxx database because "%localappdata%" is not set"#);
@@ -45,7 +45,7 @@ pub fn get_mixxx_directory() -> Result<PathBuf, CustomUserError> {
     Ok(PathBuf::from("~/.mixxx/"))
 }
 
-/// Additionally turns off foreign key constraints due to Mixxx using a broken schema
+/// Additionally makes changes due to Mixxx using a broken schema
 /// <https://github.com/mixxxdj/mixxx/issues/12328>
 pub async fn begin_transaction(db: &DatabaseConnection) -> Result<DatabaseTransaction, DbErr> {
     let txn = db.begin().await?;
@@ -54,11 +54,21 @@ pub async fn begin_transaction(db: &DatabaseConnection) -> Result<DatabaseTransa
         "PRAGMA foreign_keys = OFF",
     ))
     .await?;
+    txn.execute(Statement::from_string(
+        DatabaseBackend::Sqlite,
+        "CREATE TABLE library_old (id INTEGER PRIMARY KEY) WITHOUT ROWID",
+    ))
+    .await?;
     Ok(txn)
 }
 
 /// Undoes the changes done by [`remove_fk_constraints`] and commits the transaction
 pub async fn commit_transaction(txn: DatabaseTransaction) -> Result<(), DbErr> {
+    txn.execute(Statement::from_string(
+        DatabaseBackend::Sqlite,
+        "DROP TABLE library_old",
+    ))
+    .await?;
     txn.execute(Statement::from_string(
         DatabaseBackend::Sqlite,
         "PRAGMA foreign_keys = ON",

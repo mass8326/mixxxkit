@@ -25,7 +25,7 @@ pub enum Command {
     Backup,
     /// Import m3u8 files as crates into your library
     #[command()]
-    Import,
+    Import(import::Args),
     /// Merge two libraries together
     #[command()]
     Merge(merge::Args),
@@ -39,7 +39,7 @@ impl Run for Command {
     async fn run(&self) -> Result<(), CustomUserError> {
         match self {
             Command::Backup => backup::run(),
-            Command::Import => import::run().await,
+            Command::Import(args) => import::run(args).await,
             Command::Merge(args) => merge::run(args).await,
         }
     }

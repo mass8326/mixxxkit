@@ -1,13 +1,17 @@
 use crate::cli::{extensions::NormalizePath, validators};
+use crate::database::functions::crates;
 use crate::database::{
     begin_transaction, commit_transaction,
     functions::crates::{clear_crate_tracks, connect_track_by_location, get_by_name_or_create},
     get_mixxx_directory, get_sqlite_connection,
 };
 use crate::error::MixxxkitExit;
+use clap::Parser;
 use inquire::error::InquireResult;
 use inquire::{CustomUserError, Text};
-use log::{error, info, trace, warn};
+use log::{debug, error, info, trace, warn};
+use sea_orm::ConnectionTrait;
+use std::io::Error;
 use std::{
     collections::{HashMap, HashSet},
     fs::{read_dir, read_to_string, File},
@@ -16,27 +20,34 @@ use std::{
 };
 use yaml_rust::YamlLoader;
 
-pub async fn run() -> Result<(), CustomUserError> {
-    let Some(dir) = prompt()? else {
+#[derive(Parser, Debug, Default)]
+pub struct Args {
+    pub path: Option<String>,
+}
+
+pub async fn run(args: &Args) -> Result<(), CustomUserError> {
+    let path_maybe = match &args.path {
+        Some(input) => Some(input.to_owned()),
+        None => prompt()?,
+    };
+    let Some(dir) = path_maybe else {
         return Ok(());
     };
+
     let url: PathBuf = [get_mixxx_directory()?, "mixxxdb.sqlite".into()]
         .into_iter()
         .collect();
-
     let db = &get_sqlite_connection(&url.to_string_lossy()).await?;
     let txn = begin_transaction(db).await?;
 
     let crate_map = get_crate_map(&dir)?;
     let mut cleared_crates: HashSet<i32> = HashSet::new();
-    for maybe_entry in read_dir(dir)? {
-        let Ok(entry) = maybe_entry else {
-            continue;
-        };
-        let path = entry.path();
-        if !path.extension().is_some_and(|ext| "m3u8" == ext) {
-            continue;
-        }
+
+    let paths = read_dir(dir)?
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .filter(|path| path.extension().is_some_and(|ext| "m3u8" == ext));
+    for path in paths {
         let Ok(lines) = read_lines(&path) else {
             continue;
         };
@@ -59,44 +70,22 @@ pub async fn run() -> Result<(), CustomUserError> {
             };
         }
 
+        debug!(r#"Clearing crates for "{}"#, path.to_string_lossy());
         for id in &crate_ids {
-            if !cleared_crates.contains(id) {
-                cleared_crates.insert(*id);
-                match clear_crate_tracks(&txn, *id).await {
-                    Ok(()) => trace!(r#"Cleared tracks from crate id "{id}""#),
-                    Err(_) => warn!(r#"Unable to clear tracks from crate id "{id}""#),
-                }
-            }
+            clear_crate(*id, &mut cleared_crates, &txn).await;
         }
 
-        trace!(
-            r#"Connecting tracks to crate ids ["{}"]"#,
+        debug!(
+            r#"Connecting tracks from "{}" to crate ids [{}]"#,
+            path.to_string_lossy(),
             crate_ids
                 .iter()
                 .map(ToString::to_string)
                 .collect::<Vec<_>>()
                 .join(r#"", ""#)
         );
-
         for maybe_line in lines {
-            let Ok(line) = maybe_line else {
-                continue;
-            };
-            let mut line_pathbuf = PathBuf::from(&line);
-            if line_pathbuf.is_absolute() {
-                line_pathbuf = [&path, &line_pathbuf].iter().collect();
-            };
-            if !line_pathbuf.try_exists().is_ok_and(|bool| bool) {
-                continue;
-            }
-            for crate_id in &crate_ids {
-                connect_track_by_location(
-                    &txn,
-                    *crate_id,
-                    &line_pathbuf.to_string_lossy().normalize_path(),
-                )
-                .await?;
-            }
+            import_line_into(maybe_line, &path, &crate_ids, &txn).await;
         }
     }
 
@@ -110,6 +99,54 @@ fn prompt() -> InquireResult<Option<String>> {
         .with_validator(validators::Directory::Required)
         .prompt_skippable()
         .map(|maybe| maybe.map(NormalizePath::normalize_path))
+}
+async fn clear_crate<C: ConnectionTrait>(id: i32, cleared_crates: &mut HashSet<i32>, db: &C) {
+    if cleared_crates.contains(&id) {
+        return;
+    }
+    cleared_crates.insert(id);
+    let Err(err) = clear_crate_tracks(db, id).await else {
+        debug!(r#"Cleared tracks from crate id "{id}""#);
+        return;
+    };
+    let name = crates::get_by_id(db, id)
+        .await
+        .ok()
+        .flatten()
+        .map_or("<N/A>".to_owned(), |found| found.name);
+    warn!(r#"Unable to clear tracks from crate [{id}, "{name}"]: {err:?}"#,);
+}
+
+async fn import_line_into<C: ConnectionTrait>(
+    maybe_line: Result<String, Error>,
+    path: &PathBuf,
+    crate_ids: &Vec<i32>,
+    db: &C,
+) {
+    let Ok(line) = maybe_line else {
+        return;
+    };
+    let mut line_pathbuf = PathBuf::from(&line);
+    if line_pathbuf.is_absolute() {
+        line_pathbuf = [path, &line_pathbuf].iter().collect();
+    };
+    if !line_pathbuf.try_exists().is_ok_and(|bool| bool) {
+        return;
+    }
+    for crate_id in crate_ids {
+        let location_path = &line_pathbuf.to_string_lossy().normalize_path();
+        match connect_track_by_location(db, *crate_id, location_path).await {
+            Ok(None) => warn!(
+                r#"Could not find track location "{location_path}" from "{}""#,
+                path.to_string_lossy()
+            ),
+            Err(err) => warn!(
+                r#"Could not add track location "{location_path}" to crate id "{crate_id}": {:?}"#,
+                err
+            ),
+            _ => continue,
+        };
+    }
 }
 
 fn read_lines<P: AsRef<Path>>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>> {
