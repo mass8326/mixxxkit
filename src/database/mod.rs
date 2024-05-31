@@ -3,8 +3,8 @@ pub mod schema;
 
 use inquire::CustomUserError;
 use sea_orm::{
-    ConnectOptions, ConnectionTrait, Database, DatabaseBackend, DatabaseConnection,
-    DatabaseTransaction, DbErr, Statement, TransactionTrait,
+    ConnectOptions, ConnectionTrait, Database, DatabaseBackend, DatabaseConnection, DbErr,
+    Statement,
 };
 use std::path::PathBuf;
 
@@ -45,35 +45,22 @@ pub fn get_mixxx_directory() -> Result<PathBuf, CustomUserError> {
     Ok(PathBuf::from("~/.mixxx/"))
 }
 
-/// Additionally makes changes due to Mixxx using a broken schema
 /// <https://github.com/mixxxdj/mixxx/issues/12328>
-pub async fn begin_transaction(db: &DatabaseConnection) -> Result<DatabaseTransaction, DbErr> {
-    let txn = db.begin().await?;
-    txn.execute(Statement::from_string(
+pub async fn disable_fk(db: &DatabaseConnection) -> Result<(), DbErr> {
+    db.execute(Statement::from_string(
         DatabaseBackend::Sqlite,
         "PRAGMA foreign_keys = OFF",
     ))
     .await?;
-    txn.execute(Statement::from_string(
-        DatabaseBackend::Sqlite,
-        "CREATE TABLE library_old (id INTEGER PRIMARY KEY) WITHOUT ROWID",
-    ))
-    .await?;
-    Ok(txn)
+    Ok(())
 }
 
-/// Undoes the changes done by [`remove_fk_constraints`] and commits the transaction
-pub async fn commit_transaction(txn: DatabaseTransaction) -> Result<(), DbErr> {
-    txn.execute(Statement::from_string(
-        DatabaseBackend::Sqlite,
-        "DROP TABLE library_old",
-    ))
-    .await?;
-    txn.execute(Statement::from_string(
+/// <https://github.com/mixxxdj/mixxx/issues/12328>
+pub async fn enable_fk(db: &DatabaseConnection) -> Result<(), DbErr> {
+    db.execute(Statement::from_string(
         DatabaseBackend::Sqlite,
         "PRAGMA foreign_keys = ON",
     ))
     .await?;
-    txn.commit().await?;
     Ok(())
 }

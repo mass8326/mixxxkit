@@ -1,13 +1,14 @@
 use crate::cli::{extensions::NormalizePath, validators};
 use crate::database::get_mixxx_database_path;
 use crate::database::{
-    begin_transaction, commit_transaction, functions, get_sqlite_connection, schema::directories,
+    disable_fk, enable_fk, functions, get_sqlite_connection, schema::directories,
 };
 use crate::error::MixxxkitExit;
 use clap::Parser;
 use inquire::validator::{StringValidator, Validation};
 use inquire::{Confirm, CustomUserError, Text};
 use log::{debug, error, info};
+use sea_orm::TransactionTrait;
 use std::{collections::HashMap, fs::copy};
 
 #[derive(Parser, Debug, Default)]
@@ -47,8 +48,9 @@ pub async fn run(args: &Args) -> Result<(), CustomUserError> {
         copy(&paths.target, &paths.output)?;
     }
 
-    let output = get_sqlite_connection(&paths.output).await?;
-    let txn = begin_transaction(&output).await?;
+    let output = &get_sqlite_connection(&paths.output).await?;
+    disable_fk(output).await?;
+    let txn = output.begin().await?;
     functions::directories::insert(&txn, &dirs, dir_map.as_ref()).await?;
 
     let locs = functions::locations::get(&source).await?;
@@ -57,7 +59,8 @@ pub async fn run(args: &Args) -> Result<(), CustomUserError> {
     let tracks = functions::tracks::get(&source).await?;
     functions::tracks::insert(&txn, tracks, &loc_map).await?;
 
-    commit_transaction(txn).await?;
+    txn.commit().await?;
+    enable_fk(output).await?;
     info!("Successfully merged libraries");
     Ok(())
 }

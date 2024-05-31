@@ -1,7 +1,7 @@
 use crate::cli::{extensions::NormalizePath, validators};
 use crate::database::functions::crates;
 use crate::database::{
-    begin_transaction, commit_transaction,
+    disable_fk, enable_fk,
     functions::crates::{clear_crate_tracks, connect_track_by_location, get_by_name_or_create},
     get_mixxx_directory, get_sqlite_connection,
 };
@@ -10,7 +10,7 @@ use clap::Parser;
 use inquire::error::InquireResult;
 use inquire::{CustomUserError, Text};
 use log::{debug, error, info, trace, warn};
-use sea_orm::ConnectionTrait;
+use sea_orm::{ConnectionTrait, TransactionTrait};
 use std::io::Error;
 use std::{
     collections::{HashMap, HashSet},
@@ -38,7 +38,8 @@ pub async fn run(args: &Args) -> Result<(), CustomUserError> {
         .into_iter()
         .collect();
     let db = &get_sqlite_connection(&url.to_string_lossy()).await?;
-    let txn = begin_transaction(db).await?;
+    disable_fk(db).await?;
+    let txn = db.begin().await?;
 
     let crate_map = get_crate_map(&dir)?;
     let mut cleared_crates: HashSet<i32> = HashSet::new();
@@ -89,7 +90,8 @@ pub async fn run(args: &Args) -> Result<(), CustomUserError> {
         }
     }
 
-    commit_transaction(txn).await?;
+    txn.commit().await?;
+    enable_fk(db).await?;
     info!("Successfully imported crates");
     Ok(())
 }
