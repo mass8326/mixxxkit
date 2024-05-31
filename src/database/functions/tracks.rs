@@ -1,9 +1,9 @@
-use crate::database::schema::library;
+use crate::database::schema::{library, track_locations};
 use log::{debug, warn};
 use sea_orm::sea_query::SqliteQueryBuilder;
 use sea_orm::{
-    ActiveValue, ConnectionTrait, DatabaseBackend, DbErr, EntityTrait, FromQueryResult, QueryTrait,
-    Statement,
+    ActiveValue, ColumnTrait, ConnectionTrait, DatabaseBackend, DbErr, EntityTrait,
+    FromQueryResult, QueryFilter, QueryTrait, Statement,
 };
 use std::collections::HashMap;
 use std::hash::BuildHasher;
@@ -31,6 +31,17 @@ pub async fn get<C: ConnectionTrait>(db: &C) -> Result<Vec<library::Model>, DbEr
     Ok(tracks)
 }
 
+pub async fn get_by_location<C: ConnectionTrait>(
+    db: &C,
+    path: &str,
+) -> Result<Option<library::Model>, DbErr> {
+    library::Entity::find()
+        .inner_join(track_locations::Entity)
+        .filter(track_locations::Column::Location.eq(path))
+        .one(db)
+        .await
+}
+
 pub async fn insert<C: ConnectionTrait, S: BuildHasher>(
     db: &C,
     tracks: Vec<library::Model>,
@@ -46,19 +57,22 @@ pub async fn insert<C: ConnectionTrait, S: BuildHasher>(
             warn!(r#"Track {display} has no original location! Skipping..."#);
             continue;
         };
-        if let Some(mapped_loc_id) = location_map.get(&prev_loc_id) {
-            let input = library::ActiveModel {
-                id: ActiveValue::NotSet,
-                location: ActiveValue::Set(Some(*mapped_loc_id)),
-                ..track.into()
-            };
-            library::Entity::insert(input).exec(db).await?;
-            debug!(r#"Mapped location of {display} from "{prev_loc_id}" to "{mapped_loc_id}""#);
-        } else {
+        let Some(mapped_loc_id) = location_map.get(&prev_loc_id) else {
             warn!(
                 r#"Could not find new location of {display} with id "{prev_loc_id}"! Skipping..."#,
             );
+            continue;
         };
+        let input = library::ActiveModel {
+            id: ActiveValue::NotSet,
+            location: ActiveValue::Set(Some(*mapped_loc_id)),
+            ..track.into()
+        };
+        let result = library::Entity::insert(input).exec(db).await?;
+        debug!(
+            r#"Created {display} with track id {}, mapping location id from "{prev_loc_id}" to "{mapped_loc_id}""#,
+            result.last_insert_id
+        );
     }
     Ok(())
 }

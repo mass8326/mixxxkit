@@ -1,10 +1,6 @@
 use crate::cli::{extensions::NormalizePath, validators};
-use crate::database::functions::crates;
-use crate::database::{
-    disable_fk, enable_fk,
-    functions::crates::{clear_crate_tracks, connect_track_by_location, get_by_name_or_create},
-    get_mixxx_directory, get_sqlite_connection,
-};
+use crate::database::functions::{crates, tracks};
+use crate::database::{disable_fk, enable_fk, get_mixxx_directory, get_sqlite_connection};
 use crate::error::MixxxkitExit;
 use clap::Parser;
 use inquire::error::InquireResult;
@@ -66,7 +62,7 @@ pub async fn run(args: &Args) -> Result<(), CustomUserError> {
         let mut crate_ids: Vec<i32> = Vec::with_capacity(crate_names.len());
         for name in crate_names {
             let prefixed = "[MixxxKit] ".to_owned() + &name;
-            if let Ok(id) = get_by_name_or_create(&txn, &prefixed).await {
+            if let Ok(id) = crates::get_by_name_or_create(&txn, &prefixed).await {
                 crate_ids.push(id);
             };
         }
@@ -107,7 +103,7 @@ async fn clear_crate<C: ConnectionTrait>(id: i32, cleared_crates: &mut HashSet<i
         return;
     }
     cleared_crates.insert(id);
-    let Err(err) = clear_crate_tracks(db, id).await else {
+    let Err(err) = crates::clear_tracks(db, id).await else {
         debug!(r#"Cleared tracks from crate id "{id}""#);
         return;
     };
@@ -137,16 +133,20 @@ async fn import_line_into<C: ConnectionTrait>(
     }
     for crate_id in crate_ids {
         let location_path = &line_pathbuf.to_string_lossy().normalize_path();
-        match connect_track_by_location(db, *crate_id, location_path).await {
-            Ok(None) => warn!(
-                r#"Could not find track location "{location_path}" from "{}""#,
-                path.to_string_lossy()
-            ),
-            Err(err) => warn!(
-                r#"Could not add track location "{location_path}" to crate id "{crate_id}": {:?}"#,
-                err
-            ),
-            _ => continue,
+        let Ok(Some(track)) = tracks::get_by_location(db, location_path).await else {
+            warn!(r#"Could not find track location "{location_path}""#,);
+            continue;
+        };
+        let track_id = track.id;
+        debug!(
+            r#"Connecting "{location_path}" with track_id "{}" to crate id "{crate_id}""#,
+            track_id,
+        );
+        if let Err(err) = crates::connect_track(db, *crate_id, track_id).await {
+            warn!(
+                r#"Could not add "{location_path}" with track_id "{}" to crate id "{crate_id}": {:?}"#,
+                track_id, err
+            );
         };
     }
 }
