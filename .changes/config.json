@@ -2,7 +2,8 @@
   "gitSiteUrl": "https://github.com/mass8326/mixxxkit/",
   "pkgManagers": {
     "rust": {
-      "version": true
+      "version": true,
+      "publish": "echo 'Publishing via GitHub Actions'"
     }
   },
   "packages": {

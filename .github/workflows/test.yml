@@ -1,5 +1,12 @@
 name: Test
-on: workflow_dispatch
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    paths-ignore:
+      - ".vscode/**"
+      - "**/*.md"
 permissions:
   contents: write
 jobs:
