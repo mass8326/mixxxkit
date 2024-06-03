@@ -3,7 +3,7 @@ use inquire::{
     validator::{StringValidator, Validation},
     CustomUserError,
 };
-use std::path::Path;
+use std::{env::current_dir, path::Path};
 
 #[derive(Clone)]
 pub enum Target {
@@ -17,7 +17,12 @@ impl StringValidator for Target {
         }
         let normalized = path.to_owned().normalize_path();
         let path = Path::new(&normalized);
-        let dir = path.join("..");
+        let raw = path.parent().unwrap();
+        let dir = if raw.to_string_lossy().is_empty() {
+            current_dir()?
+        } else {
+            raw.to_owned()
+        };
         let result = match (dir.is_dir(), path.exists()) {
             (true, false) => Validation::Valid,
             (true, true) => Validation::Invalid("File already exists at path!".into()),
