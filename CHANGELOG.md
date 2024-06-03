@@ -2,4 +2,17 @@
 
 ## \[0.2.2]
 
-- [`e2975a5`](https://github.com/mass8326/mixxxkit/commit/e2975a5ff9224ca0e9a2950bb65faf94b3256066) Fix ignoring foreign key restraints
+- [`9020644`](https://github.com/mass8326/mixxxkit/commit/9020644e7406bf98bf417e5993c6429b9f699269) Fix ignoring foreign key restraints
+
+## \[0.2.1]
+
+- [`e9184d5`](https://github.com/mass8326/mixxxkit/commit/e9184d5ec4c4aec39bbfcefff69c01aab2eec81b) Add path argument to import command for cli use
+- [`e9184d5`](https://github.com/mass8326/mixxxkit/commit/e9184d5ec4c4aec39bbfcefff69c01aab2eec81b) Fix track clearing of crates failing due to broken schema
+
+## \[0.2.0]
+
+- [`255f596`](https://github.com/mass8326/mixxxkit/commit/255f59664748b77fe7953fa72386c9299c0682be) Add backup and import commands
+
+## \[0.1.0]
+
+- [`9ef32d3`](https://github.com/mass8326/mixxxkit/commit/9ef32d326d98914f4ef1e8951e77ce813c72cc7d) Initial release
