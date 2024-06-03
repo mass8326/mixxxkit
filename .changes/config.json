@@ -1,0 +1,14 @@
+{
+  "gitSiteUrl": "https://github.com/mass8326/mixxxkit/",
+  "pkgManagers": {
+    "rust": {
+      "version": true
+    }
+  },
+  "packages": {
+    "mixxxkit": {
+      "path": ".",
+      "manager": "rust"
+    }
+  }
+}

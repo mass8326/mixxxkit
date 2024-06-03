@@ -1,41 +1,62 @@
 name: Release
 on:
   push:
-    tags:
-      - "v[0-9]+.[0-9]+.[0-9]+*"
-permissions:
-  contents: write
+    branches:
+      - main
+  pull_request:
+    paths-ignore:
+      - ".vscode/**"
+      - "**/*.md"
 jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: write
     steps:
-      - id: create
-        uses: softprops/action-gh-release@v2
+      - uses: actions/checkout@v3
         with:
-          name: MixxxKit ${{ github.ref_name }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v3
+      - name: git config
+        run: |
+          git config --global user.name "${{ github.event.pusher.name }}"
+          git config --global user.email "${{ github.event.pusher.email }}"
+      - uses: jbolda/covector/packages/action@covector-v0.11
+        id: covector
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          command: "version-or-publish"
+          createRelease: true
+      - uses: peter-evans/create-pull-request@v3
+        if: steps.covector.outputs.commandRan == 'version'
+        with:
+          title: "Publish New Versions"
+          commit-message: "Publish new versions"
+          labels: "versioning"
+          branch: "release"
+          body: ${{ steps.covector.outputs.change }}
     outputs:
-      upload_url: ${{ steps.create.outputs.upload_url }}
+      upload_url: ${{ steps.covector.outputs.releaseUploadUrl }}
   upload:
+    if: needs.release.outputs.upload_url
     name: Upload asset (${{ matrix.config.asset_name }})
     needs: release
+    permissions:
+      contents: write
     strategy:
       matrix:
         config:
           - os: ubuntu-latest
-            cmd: sudo apt install -y musl-tools
             target: x86_64-unknown-linux-musl
             asset_file: mixxxkit
             asset_name: mixxxkit-linux
           - os: macos-latest
-            cmd: echo 'No native dependencies needed'
             target: x86_64-apple-darwin
             asset_file: mixxxkit
             asset_name: mixxxkit-macos
           - os: windows-latest
-            cmd: echo 'No native dependencies needed'
             target: x86_64-pc-windows-msvc
             asset_file: mixxxkit.exe
             asset_name: mixxxkit-windows.exe
@@ -45,7 +66,9 @@ jobs:
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           target: ${{ matrix.config.target }}
-      - run: ${{ matrix.config.cmd }} && cargo build --release --target ${{ matrix.config.target }}
+      - run: sudo apt install -y musl-tools
+        if: matrix.os == 'ubuntu-latest'
+      - run: cargo build --release --target ${{ matrix.config.target }}
       - uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ github.token }}
