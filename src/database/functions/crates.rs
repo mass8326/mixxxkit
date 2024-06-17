@@ -1,7 +1,8 @@
 use crate::database::schema::{crate_tracks, crates};
 use log::debug;
 use sea_orm::{
-    ActiveValue, ColumnTrait, ConnectionTrait, DbErr, EntityTrait, InsertResult, QueryFilter,
+    sea_query::OnConflict, ActiveValue, ColumnTrait, ConnectionTrait, DbErr, EntityTrait,
+    InsertResult, QueryFilter, TryInsertResult,
 };
 
 pub async fn get_by_id<C: ConnectionTrait>(
@@ -47,10 +48,18 @@ pub async fn connect_track<C: ConnectionTrait>(
     db: &C,
     crate_id: i32,
     track_id: i32,
-) -> Result<InsertResult<crate_tracks::ActiveModel>, DbErr> {
+) -> Result<TryInsertResult<InsertResult<crate_tracks::ActiveModel>>, DbErr> {
     let data = crate_tracks::ActiveModel {
         crate_id: ActiveValue::Set(crate_id),
         track_id: ActiveValue::Set(track_id),
     };
-    crate_tracks::Entity::insert(data).exec(db).await
+    crate_tracks::Entity::insert(data)
+        .on_conflict(
+            OnConflict::columns([crate_tracks::Column::CrateId, crate_tracks::Column::TrackId])
+                .do_nothing()
+                .to_owned(),
+        )
+        .do_nothing()
+        .exec(db)
+        .await
 }
