@@ -32,7 +32,7 @@ pub fn get_mixxx_directory() -> Result<PathBuf, CustomUserError> {
 }
 
 #[cfg(target_os = "macos")]
-#[must_use]
+#[allow(clippy::unnecessary_wraps)]
 pub fn get_mixxx_directory() -> Result<PathBuf, CustomUserError> {
     Ok(PathBuf::from(
         "~/Library/Containers/org.mixxx.mixxx/Data/Library/Application Support/Mixxx",
@@ -40,7 +40,7 @@ pub fn get_mixxx_directory() -> Result<PathBuf, CustomUserError> {
 }
 
 #[cfg(target_os = "linux")]
-#[must_use]
+#[allow(clippy::unnecessary_wraps)]
 pub fn get_mixxx_directory() -> Result<PathBuf, CustomUserError> {
     Ok(PathBuf::from("~/.mixxx/"))
 }
