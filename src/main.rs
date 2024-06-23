@@ -5,7 +5,8 @@ mod database;
 mod error;
 
 use clap::Parser;
-use cli::commands::{Cli, Command, Run};
+use cli::commands::Command;
+use cli::Cli;
 use flexi_logger::Logger;
 use inquire::{error::InquireResult, CustomUserError, Select};
 use strum::IntoEnumIterator;
