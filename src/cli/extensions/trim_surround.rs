@@ -1,9 +1,8 @@
-pub trait NormalizePath {
+pub trait TrimSurround {
     fn trim_surround(self, char: char) -> Self;
-    fn normalize_path(self) -> String;
 }
 
-impl<'a> NormalizePath for &'a str {
+impl<'a> TrimSurround for &'a str {
     fn trim_surround(self, pat: char) -> &'a str {
         let mut chars = self.chars();
         let quoted =
@@ -14,19 +13,11 @@ impl<'a> NormalizePath for &'a str {
             self
         }
     }
-
-    fn normalize_path(self) -> String {
-        self.trim().trim_surround('"').replace('\\', "/")
-    }
 }
 
-impl NormalizePath for String {
+impl TrimSurround for String {
     fn trim_surround(self, pat: char) -> String {
         self[..].trim_surround(pat).to_owned()
-    }
-
-    fn normalize_path(self) -> String {
-        self[..].normalize_path()
     }
 }
 
@@ -37,11 +28,5 @@ mod tests {
     #[test]
     fn str_trim_surround() {
         assert_eq!("xxxxx".trim_surround('x'), "xxx");
-    }
-
-    #[test]
-    fn str_normalize_path() {
-        let result = r#" "C:\Test\Dir" "#.normalize_path();
-        assert_eq!(result, "C:/Test/Dir");
     }
 }

@@ -1,5 +1,3 @@
-#![deny(unused_imports)]
-
 mod cli;
 mod database;
 mod error;
