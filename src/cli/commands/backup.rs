@@ -13,7 +13,7 @@ pub fn run() -> Result<(), CustomUserError> {
     let validation = validators::Database::Required.validate(&source.to_string_lossy())?;
     if Validation::Valid != validation {
         error!("Could not find Mixxx database");
-        return Err(Box::new(MixxxkitExit));
+        return Err(Box::new(MixxxkitExit::Abort));
     }
 
     let mut target = get_mixxx_directory()?;

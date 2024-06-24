@@ -5,9 +5,9 @@ use crate::database::{
 };
 use crate::error::MixxxkitExit;
 use clap::Parser;
-use inquire::validator::{StringValidator, Validation};
+use inquire::validator::StringValidator;
 use inquire::{Confirm, CustomUserError, Text};
-use log::{debug, error, info};
+use log::{debug, info};
 use sea_orm::TransactionTrait;
 use std::{collections::HashMap, fs::copy};
 
@@ -26,127 +26,118 @@ pub struct Args {
 
 pub async fn run(args: &Args) -> Result<(), CustomUserError> {
     let paths = prompt_for_databases(args)?;
-    if args.target.is_none() && get_mixxx_database_path()?.to_string_lossy() == paths.output {
-        let check =
-            Confirm::new("You are going to edit your Mixxx database in-place. Are you sure? (y/n)")
-                .with_help_message("Please make a backup of your database before continuing!")
-                .prompt_skippable()
-                .unwrap();
-        if !check.is_some_and(|b| b) {
-            return Ok(());
-        };
-    }
 
-    let source = get_sqlite_connection(&paths.source).await?;
-    let dirs = functions::directories::get(&source).await?;
+    let source_db = get_sqlite_connection(&paths.source).await?;
+    let dirs = functions::directories::get(&source_db).await?;
     let dir_map = match args.force {
         false => Some(prompt_for_directories(&dirs)),
         true => None,
     };
 
-    if paths.target != paths.output {
-        copy(&paths.target, &paths.output)?;
-    }
+    let output_path = match (paths.target, paths.output) {
+        (Some(target), Some(output)) => {
+            if target != output {
+                copy(target, &output)?;
+            }
+            output
+        }
+        (Some(target), None) => target,
+        _ => get_mixxx_database_path()?.to_string_lossy().to_string(),
+    };
+    let output_db = &get_sqlite_connection(&output_path).await?;
 
-    let output = &get_sqlite_connection(&paths.output).await?;
-    disable_fk(output).await?;
-    let txn = output.begin().await?;
+    disable_fk(output_db).await?;
+    let txn = output_db.begin().await?;
+
     functions::directories::insert(&txn, &dirs, dir_map.as_ref()).await?;
 
-    let locs = functions::locations::get(&source).await?;
+    let locs = functions::locations::get(&source_db).await?;
     let loc_map = functions::locations::insert(&txn, locs, dir_map.as_ref()).await?;
 
-    let tracks = functions::tracks::get(&source).await?;
+    let tracks = functions::tracks::get(&source_db).await?;
     functions::tracks::insert(&txn, tracks, &loc_map).await?;
 
     txn.commit().await?;
-    enable_fk(output).await?;
+    enable_fk(output_db).await?;
+
     info!("Successfully merged libraries");
     Ok(())
 }
 
 struct DatabasePaths {
     pub source: String,
-    pub target: String,
-    pub output: String,
+    pub target: Option<String>,
+    pub output: Option<String>,
 }
 
 fn prompt_for_databases(args: &Args) -> Result<DatabasePaths, CustomUserError> {
-    let Some(source) = args.source.as_ref().map_or_else(
-        || {
-            Some(
-                Text::new("Path to source database:")
-                    .with_validator(validators::Database::Required)
-                    .with_help_message("Enter the database that you want to pull songs from")
-                    .prompt()
-                    .unwrap()
-                    .normalize_path(),
-            )
-        },
-        |path| match validators::Database::Required.validate(path) {
-            Ok(Validation::Valid) => Some(path.to_owned()),
-            _ => None,
-        },
-    ) else {
-        error!("Source database invalid!");
-        return Err(Box::new(MixxxkitExit));
-    };
-    debug!(r#"Source path set to "{source}""#);
-
-    let Some(target) = match args.source {
-        None => {
-            let result = Text::new("Path to target database:")
-                .with_help_message("Leave blank to target your current Mixxx database")
-                .with_validator(validators::Database::Optional)
-                .prompt()
-                .unwrap()
-                .normalize_path();
-            match result.is_empty() {
-                false => Some(result),
-                true => None,
-            }
+    let source = match &args.source {
+        Some(path) => {
+            validators::Database::Required.validate(path)?;
+            path.clone()
         }
-        Some(_) => None,
+        None => Text::new("Path to source database:")
+            .with_validator(validators::Database::Required)
+            .with_help_message("Enter the database that you want to pull songs from")
+            .prompt()
+            .unwrap()
+            .normalize_path(),
+    };
+
+    if args.source.is_some() && args.target.is_none() {
+        return prompt_for_confirmation(DatabasePaths {
+            source,
+            target: None,
+            output: None,
+        });
     }
-    .or_else(|| {
-        Some(
-            get_mixxx_database_path()
-                .ok()?
-                .to_string_lossy()
-                .to_string(),
+
+    let target_raw = Text::new("Path to target database:")
+        .with_help_message("Leave blank to target your current Mixxx database")
+        .with_validator(validators::Database::Optional)
+        .prompt()
+        .unwrap()
+        .normalize_path();
+    let target = match target_raw.is_empty() {
+        false => Some(target_raw),
+        true => None,
+    };
+
+    let output_raw = Text::new("Path to output database:")
+        .with_help_message(
+            "Leave blank to edit the target in place, enter a path to output a new file",
         )
-    }) else {
-        return Err(Box::new(MixxxkitExit));
+        .with_validator(validators::Target::OptionalDirExists)
+        .prompt()
+        .unwrap()
+        .normalize_path();
+    let output = match output_raw.is_empty() {
+        false => Some(output_raw),
+        true => None,
     };
-    debug!(r#"Target path set to "{target}""#);
 
-    let output = match args.source {
-        None => {
-            let result = Text::new("Path to output database:")
-                .with_help_message(
-                    "Leave blank to edit the target in place, enter a path to output a new file",
-                )
-                .with_validator(validators::Target::OptionalDirExists)
-                .prompt()
-                .unwrap()
-                .normalize_path();
-            match result.is_empty() {
-                false => Some(result),
-                true => None,
-            }
-        }
-        Some(_) => None,
-    }
-    .unwrap_or_else(|| target.clone());
-    debug!(r#"Output path set to "{output}""#);
-
-    Ok(DatabasePaths {
+    let payload = DatabasePaths {
         source,
         target,
         output,
-    })
+    };
+    match payload.target.is_none() && payload.output.is_none() {
+        true => prompt_for_confirmation(payload),
+        false => Ok(payload),
+    }
 }
 
+fn prompt_for_confirmation(paths: DatabasePaths) -> Result<DatabasePaths, CustomUserError> {
+    let check =
+        Confirm::new("You are going to edit your Mixxx database in-place. Are you sure? (y/n)")
+            .with_help_message("Please make a backup of your database before continuing!")
+            .prompt_skippable()
+            .unwrap();
+    match check.is_some_and(|b| b) {
+        true => Ok(paths),
+        false => Err(Box::new(MixxxkitExit::Abort)),
+    }
+}
 fn prompt_for_directories(dirs: &[directories::Model]) -> HashMap<String, String> {
     let mut map = HashMap::<String, String>::with_capacity(dirs.len());
     for dir in dirs {

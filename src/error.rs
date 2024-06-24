@@ -1,15 +1,7 @@
-use std::{
-    error::Error,
-    fmt::{Display, Formatter, Result},
-};
+use thiserror::Error;
 
-#[derive(Debug, Clone)]
-pub struct MixxxkitExit;
-
-impl Display for MixxxkitExit {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(f, "Mixxxkit error")
-    }
+#[derive(Debug, Error)]
+pub enum MixxxkitExit {
+    #[error("Program aborted")]
+    Abort,
 }
-
-impl Error for MixxxkitExit {}

@@ -167,11 +167,11 @@ fn get_crate_map<P: AsRef<Path>>(
                 ErrorKind::NotFound => Ok(None),
                 ErrorKind::PermissionDenied => {
                     error!("mixxxkit.crates.yaml found but permissions are insufficient to read");
-                    return Err(Box::new(MixxxkitExit));
+                    return Err(Box::new(MixxxkitExit::Abort));
                 }
                 _ => {
                     error!("mixxxkit.crates.yaml found but ran into {err:?}");
-                    return Err(Box::new(MixxxkitExit));
+                    return Err(Box::new(MixxxkitExit::Abort));
                 }
             };
         }
@@ -182,11 +182,11 @@ fn get_crate_map<P: AsRef<Path>>(
 fn parse_crate_map(str: &str) -> Result<HashMap<String, Vec<String>>, CustomUserError> {
     let Ok(docs) = YamlLoader::load_from_str(str) else {
         error!("mixxxkit.crates.yaml found but not parseable");
-        return Err(Box::new(MixxxkitExit));
+        return Err(Box::new(MixxxkitExit::Abort));
     };
     let Some(forward_map) = docs[0]["mappings"].as_hash() else {
         error!("mixxxkit.crates.yaml found but not parseable");
-        return Err(Box::new(MixxxkitExit));
+        return Err(Box::new(MixxxkitExit::Abort));
     };
     let mut reverse_map: HashMap<String, Vec<String>> = HashMap::new();
     for (key_raw, arr_raw) in forward_map {

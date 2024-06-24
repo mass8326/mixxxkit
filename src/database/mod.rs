@@ -26,7 +26,7 @@ pub fn get_mixxx_directory() -> Result<PathBuf, CustomUserError> {
 
     let Some(localappdata) = std::env::var_os("LOCALAPPDATA") else {
         error!(r#"Could not find Mixxx database because "%localappdata%" is not set"#);
-        return Err(Box::new(MixxxkitExit));
+        return Err(Box::new(MixxxkitExit::Abort));
     };
     Ok([localappdata, "Mixxx".into()].iter().collect())
 }
