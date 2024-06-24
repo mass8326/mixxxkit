@@ -1,7 +1,6 @@
 use crate::cli::{extensions::NormalizePath, validators};
 use crate::database::functions::{crates, tracks};
 use crate::database::{disable_fk, enable_fk, get_mixxx_directory, get_sqlite_connection};
-use crate::error::MixxxkitExit;
 use clap::Parser;
 use inquire::error::InquireResult;
 use inquire::{CustomUserError, Text};
@@ -14,6 +13,7 @@ use std::{
     io::{self, BufRead, ErrorKind},
     path::{Path, PathBuf},
 };
+use thiserror::Error;
 use yaml_rust::YamlLoader;
 
 #[derive(Parser, Debug, Default)]
@@ -44,6 +44,7 @@ pub async fn run(args: &Args) -> Result<(), CustomUserError> {
         .filter_map(Result::ok)
         .map(|entry| entry.path())
         .filter(|path| path.extension().is_some_and(|ext| "m3u8" == ext));
+
     for path in paths {
         let Ok(lines) = read_lines(&path) else {
             continue;
@@ -156,40 +157,39 @@ fn read_lines<P: AsRef<Path>>(filename: P) -> io::Result<io::Lines<io::BufReader
     Ok(io::BufReader::new(file).lines())
 }
 
+#[derive(Debug, Error)]
+enum MixxxkitImportError {
+    #[error("Could not read mixxxkit.crates.yaml {0:?}")]
+    Unknown(#[from] io::Error),
+    #[error("Unable to parse mixxxkit.crates.yaml")]
+    ParsingFailed,
+}
+
 fn get_crate_map<P: AsRef<Path>>(
     dir: P,
-) -> Result<Option<HashMap<String, Vec<String>>>, CustomUserError> {
+) -> Result<Option<HashMap<String, Vec<String>>>, MixxxkitImportError> {
     let path = dir.as_ref().join("mixxxkit.crates.yaml");
     let contents = match read_to_string(path) {
         Ok(contents) => contents,
         Err(err) => {
             return match err.kind() {
                 ErrorKind::NotFound => Ok(None),
-                ErrorKind::PermissionDenied => {
-                    error!("mixxxkit.crates.yaml found but permissions are insufficient to read");
-                    return Err(Box::new(MixxxkitExit::Abort));
-                }
-                _ => {
-                    error!("mixxxkit.crates.yaml found but ran into {err:?}");
-                    return Err(Box::new(MixxxkitExit::Abort));
-                }
+                _ => return Err(err.into()),
             };
         }
     };
     Ok(Some(parse_crate_map(&contents)?))
 }
 
-fn parse_crate_map(str: &str) -> Result<HashMap<String, Vec<String>>, CustomUserError> {
+fn parse_crate_map(str: &str) -> Result<HashMap<String, Vec<String>>, MixxxkitImportError> {
     let Ok(docs) = YamlLoader::load_from_str(str) else {
-        error!("mixxxkit.crates.yaml found but not parseable");
-        return Err(Box::new(MixxxkitExit::Abort));
+        return Err(MixxxkitImportError::ParsingFailed);
     };
-    let Some(forward_map) = docs[0]["mappings"].as_hash() else {
-        error!("mixxxkit.crates.yaml found but not parseable");
-        return Err(Box::new(MixxxkitExit::Abort));
+    let Some(source) = docs[0].as_hash() else {
+        return Err(MixxxkitImportError::ParsingFailed);
     };
-    let mut reverse_map: HashMap<String, Vec<String>> = HashMap::new();
-    for (key_raw, arr_raw) in forward_map {
+    let mut result: HashMap<String, Vec<String>> = HashMap::new();
+    for (key_raw, arr_raw) in source {
         let (Some(key), Some(arr)) = (key_raw.as_str(), arr_raw.as_vec()) else {
             continue;
         };
@@ -197,11 +197,11 @@ fn parse_crate_map(str: &str) -> Result<HashMap<String, Vec<String>>, CustomUser
             let Some(val) = val_raw.as_str() else {
                 continue;
             };
-            let vec = reverse_map.entry(val.to_owned()).or_default();
+            let vec = result.entry(val.to_owned()).or_default();
             vec.push(key.to_owned());
         }
     }
-    Ok(reverse_map)
+    Ok(result)
 }
 
 #[cfg(test)]
@@ -212,13 +212,12 @@ mod tests {
     #[test]
     fn parses_map() {
         let str = indoc! {"
-            mappings:
-                fruit:
-                    - apple
-                    - tomato
-                vegetable:
-                    - leek
-                    - tomato
+            fruit:
+                - apple
+                - tomato
+            vegetable:
+                - leek
+                - tomato
         "};
         let map = parse_crate_map(str).unwrap();
         let vec = map.get("tomato").unwrap();
