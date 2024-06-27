@@ -1,5 +1,5 @@
 pub mod commands;
-mod extensions;
+mod traits;
 mod validators;
 
 use clap::Parser;

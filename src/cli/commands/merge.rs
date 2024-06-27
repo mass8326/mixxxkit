@@ -1,4 +1,4 @@
-use crate::cli::{extensions::NormalizePath, validators};
+use crate::cli::{traits::NormalizePath, validators};
 use crate::database::get_mixxx_database_path;
 use crate::database::{
     disable_fk, enable_fk, functions, get_sqlite_connection, schema::directories,

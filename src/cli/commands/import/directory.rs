@@ -1,4 +1,4 @@
-use crate::cli::extensions::{NormalizePath, ResolveBase};
+use crate::cli::traits::{NormalizePath, ResolveBase};
 use crate::database::functions::crates;
 use crate::database::functions::tracks::get_by_location;
 use log::warn;

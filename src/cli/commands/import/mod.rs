@@ -2,8 +2,8 @@ mod directory;
 mod error;
 mod playlist;
 
-use crate::cli::extensions::ResolveBase;
-use crate::cli::{extensions::NormalizePath, validators};
+use crate::cli::traits::ResolveBase;
+use crate::cli::{traits::NormalizePath, validators};
 use crate::database::functions::crates;
 use crate::database::{disable_fk, enable_fk, get_mixxx_directory, get_sqlite_connection};
 use clap::Parser;

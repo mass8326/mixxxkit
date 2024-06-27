@@ -1,4 +1,4 @@
-use crate::cli::extensions::NormalizePath;
+use crate::cli::traits::NormalizePath;
 use crate::database::get_sqlite_connection;
 use inquire::validator::{StringValidator, Validation};
 use inquire::CustomUserError;

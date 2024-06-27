@@ -1,4 +1,4 @@
-use crate::cli::extensions::NormalizePath;
+use crate::cli::traits::NormalizePath;
 use inquire::{
     validator::{StringValidator, Validation},
     CustomUserError,

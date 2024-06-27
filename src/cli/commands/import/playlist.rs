@@ -1,5 +1,5 @@
 use super::error::Result;
-use crate::cli::extensions::{NormalizePath, ResolveBase};
+use crate::cli::traits::{NormalizePath, ResolveBase};
 use crate::database::functions::{crates, tracks};
 use log::{debug, warn};
 use sea_orm::ConnectionTrait;
