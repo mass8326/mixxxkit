@@ -73,7 +73,7 @@ async fn import_paths<C: ConnectionTrait>(
     for path in paths {
         let buf = PathBuf::from(path);
         if buf.is_dir() {
-            directory::import_path(db, crate_id, base.as_ref(), buf).await?;
+            directory::import(db, crate_id, base.as_ref(), buf).await?;
         } else {
             playlist::import_path(db, crate_id, buf).await?;
         }
@@ -147,7 +147,8 @@ mod tests {
 
     #[test]
     fn parses_map() {
-        let str = indoc! {"
+        let str = indoc! {r#"
+            prefix: "[my] "
             mappings:
                 fruit:
                     - apple
@@ -155,9 +156,9 @@ mod tests {
                 vegetable:
                     - leek
                     - tomato
-        "};
+        "#};
         let map = parse_crate_map(str).unwrap();
-        let vec = map.get("fruit").unwrap();
+        let vec = map.get("[my] fruit").unwrap();
         assert!(["apple", "tomato"]
             .into_iter()
             .all(|subject| vec.contains(&subject.to_string())));
