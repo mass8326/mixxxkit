@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.3.0]
+
+- [`e56e7a7`](https://github.com/mass8326/mixxxkit/commit/e56e7a70971e6fbe3dc8230e1997bf9df2486bd5) Change how import command parses yaml mapping
+
 ## \[0.2.2]
 
 - [`9020644`](https://github.com/mass8326/mixxxkit/commit/9020644e7406bf98bf417e5993c6429b9f699269) Fix ignoring foreign key restraints
