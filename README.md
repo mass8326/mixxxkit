@@ -1,17 +1,14 @@
 # MixxxKit
 
+> [!CAUTION]
+> Cue points might not save after using this tool. Please [make a backup](https://manual.mixxx.org/2.4/en/chapters/appendix/settings_directory#location) and only use this tool for temporary or experimental uses.
+>
+> A potential reason for this issue is here: https://github.com/mixxxdj/mixxx/issues/12328
+
 A command line tool that makes managing [Mixxx 2.4](https://mixxx.org/) libraries easy.
 
-* [Warning](#warning)
 * [How To Use](#how-to-use)
 * [Contributors](#contributors)
-
-## Warning
-
-> [!CAUTION]
-> This tool is experimental and comes with no warranties. The loss of your hot cues, crates, analyzed tracks, and more is possible.
-
-To protect against this, please make a backup of your [Mixxx settings directory](https://manual.mixxx.org/2.4/en/chapters/appendix/settings_directory#location) before using.
 
 ## How To Use
 
@@ -27,7 +24,7 @@ Running the executable will bring up an interactive prompt in your terminal:
 [↑↓ to move, enter to select, type to filter]
 ```
 
-You can pass the executable arguments to skip the prompting and enable use in scripts:
+You may also pass the executable arguments to skip the prompting for use in scripts:
 
 ```sh
 $ mixxxkit merge --help
@@ -36,7 +33,7 @@ $ mixxxkit merge source.db --force --debug mixxxkit::database
 
 ## Contributors
 
-For Ubuntu:
+Install required dependencies for Ubuntu:
 
 ```sh
 $ sudo apt install -y musl-tools
